@@ -597,6 +597,11 @@ CONTAINS
       ! CALL pw_pool_create_pw(xc_pw_pool,vxc(2)%pw,&
       !         in_space=REALSPACE, use_data=REALDATA3D)
 
+      ! pre-setting for PBC correction
+      poisson_env%rebuild = .True.
+      poisson_env%parameters%solver = 3 ! 3 is MT PS
+      poisson_env%parameters%periodic = (/0,0,0/)  ! non-periodic
+      
       ! now apply to SIC correction to each selected orbital
       DO iorb = 1, Norb
          ! extract the proper orbital from the mo_coeff
@@ -664,6 +669,10 @@ CONTAINS
          ENDIF
 
       ENDDO
+      ! recover the periodic PS
+      poisson_env%rebuild = .True.
+      poisson_env%parameters%solver = 1 ! 1 is PERIODIC PS
+      poisson_env%parameters%periodic = (/1,1,1/)  ! periodic
 
       CALL pw_pool_give_back_pw(auxbas_pw_pool, orb_rho_r%pw)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, tmp_r%pw)
