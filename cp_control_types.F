@@ -435,7 +435,7 @@ MODULE cp_control_types
                                               plus_u_method_id, &
                                               dir_surf_dip, &
                                               nimages = 1
-      INTEGER                              :: sic_list_id, pssolver
+      INTEGER                              :: sic_list_id, psolver
       INTEGER                              :: auto_basis_ri_aux = 1, &
                                               auto_basis_aux_fit = 1, &
                                               auto_basis_lri_aux = 1, &
