@@ -6513,6 +6513,17 @@ CONTAINS
                           default_r_val=1.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
+      
+      CALL keyword_create(keyword, name="POISSON_SOLVER", &
+                          variants=(/"POISSON", "PSOLVER"/), &
+                          description="Specify which kind of solver to use to solve the Poisson equation.", &
+                          usage="POISSON_SOLVER char", &
+                          enum_c_vals=s2a("PERIODIC", "ANALYTIC", "MT", "MULTIPOLE", "WAVELET", "IMPLICIT"), &
+                          enum_i_vals=(/1, 2, 3, 4, 6, 7/), &
+                          citations=(/Blochl1995, Martyna1999, Genovese2006, Genovese2007/), &
+                          default_i_val=3)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)      
 
       CALL keyword_create(keyword, name="SIC_METHOD", &
                           description="Method used to remove the self interaction", &
