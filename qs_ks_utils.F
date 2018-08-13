@@ -399,7 +399,7 @@ CONTAINS
       CHARACTER(*), PARAMETER :: routineN = 'sic_explicit_orbitals', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, i, Iorb, k_alpha, k_beta, Norb
+      INTEGER                                            :: handle, i, Iorb, k_alpha, k_beta, Norb, auxsolver, auxperiodic(3)
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: sic_orbital_list
       LOGICAL                                            :: compute_virial, uniform_occupation
       REAL(KIND=dp)                                      :: ener, exc, total_rho
@@ -597,11 +597,15 @@ CONTAINS
       ! CALL pw_pool_create_pw(xc_pw_pool,vxc(2)%pw,&
       !         in_space=REALSPACE, use_data=REALDATA3D)
 
-      ! pre-setting for PBC correction
-      poisson_env%rebuild = .True.
-      poisson_env%parameters%solver = 3 ! 3 is MT PS
-      poisson_env%parameters%periodic = (/0,0,0/)  ! non-periodic
-      
+      ! setting for PBC correction
+      auxsolver = 1000
+      IF (ANY(poisson_env%parameter%periodic = 1)) THEN
+         poisson_env%rebuild = .True.
+         auxsolver = poisson_env%parameters%solver
+         auxperiodic = poisson_env%parameters%periodic
+         poisson_env%parameters%solver = dft_control%psolver
+         poisson_env%parameters%periodic = (/0,0,0/)  ! non-periodic
+      ENDIF
       ! now apply to SIC correction to each selected orbital
       DO iorb = 1, Norb
          ! extract the proper orbital from the mo_coeff
@@ -670,9 +674,11 @@ CONTAINS
 
       ENDDO
       ! recover the periodic PS
-      poisson_env%rebuild = .True.
-      poisson_env%parameters%solver = 1 ! 1 is PERIODIC PS
-      poisson_env%parameters%periodic = (/1,1,1/)  ! periodic
+      IF (auxsolver .NE. 1000) THEN
+         poisson_env%rebuild = .True.
+         poisson_env%parameters%solver = auxsolver
+         poisson_env%parameters%periodic = auxperiodic
+      ENDIF
 
       CALL pw_pool_give_back_pw(auxbas_pw_pool, orb_rho_r%pw)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, tmp_r%pw)
