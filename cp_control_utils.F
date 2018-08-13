@@ -306,6 +306,7 @@ CONTAINS
       CALL section_vals_get(tmp_section, explicit=dft_control%low_spin_roks)
 
       dft_control%sic_method_id = sic_none
+      dft_control%psolver = 3 ! MT  4 multipole 5 hockney 6 wavelet
       dft_control%sic_scaling_a = 1.0_dp
       dft_control%sic_scaling_b = 1.0_dp
 
@@ -333,6 +334,8 @@ CONTAINS
                                 i_val=dft_control%sic_method_id)
       CALL section_vals_val_get(tmp_section, "ORBITAL_SET", &
                                 i_val=dft_control%sic_list_id)
+      CALL section_vals_val_get(tmp_section, "PSOLVER", &
+                                i_val=dft_control%psolver)                          
       CALL section_vals_val_get(tmp_section, "SIC_SCALING_A", &
                                 r_val=dft_control%sic_scaling_a)
       CALL section_vals_val_get(tmp_section, "SIC_SCALING_B", &
