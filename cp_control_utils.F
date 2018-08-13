@@ -334,7 +334,7 @@ CONTAINS
                                 i_val=dft_control%sic_method_id)
       CALL section_vals_val_get(tmp_section, "ORBITAL_SET", &
                                 i_val=dft_control%sic_list_id)
-      CALL section_vals_val_get(tmp_section, "PSOLVER", &
+      CALL section_vals_val_get(tmp_section, "POISSON_SOLVER", &
                                 i_val=dft_control%psolver)                          
       CALL section_vals_val_get(tmp_section, "SIC_SCALING_A", &
                                 r_val=dft_control%sic_scaling_a)
