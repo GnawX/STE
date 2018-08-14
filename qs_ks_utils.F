@@ -604,12 +604,12 @@ CONTAINS
       auxsolver = 1000
       IF (.NOT. ALL(poisson_env%parameter%periodic = 0)) THEN
          ! extract the proper orbital for decoupling
-         CALL get_mo_set(mo_set=mo_array(sic_orbital_list(1, iorb))%mo_set, mo_coeff=mo_coeff)
-         CALL cp_fm_to_fm(mo_coeff, matrix_v, Norb, sic_orbital_list(2, iorb), 1)
+         CALL get_mo_set(mo_set=mo_array(1)%mo_set, mo_coeff=mo_coeff)
+         CALL cp_fm_to_fm(mo_coeff, matrix_v, Norb, k_beta+1, 1)
 
          ! construct the density matrix and the corresponding density
          CALL dbcsr_set(orb_density_matrix, 0.0_dp)
-         CALL cp_dbcsr_plus_fm_fm_t(orb_density_matrix, matrix_v=matrix_v, ncol=1, &
+         CALL cp_dbcsr_plus_fm_fm_t(orb_density_matrix, matrix_v=matrix_v, ncol=Norb, &
                                     alpha=1.0_dp)
 
          CALL calculate_rho_elec(matrix_p=orb_density_matrix, &
@@ -640,77 +640,83 @@ CONTAINS
             ! note, orb_h (which is being pointed to with orb_h_p) is zeroed above
             CALL integrate_v_rspace(v_rspace=work_v_rspace, pmat=orb_density_matrix_p, hmat=orb_h_p, &
                                     qs_env=qs_env, calculate_forces=calculate_forces)
-
+                                    
+            CALL cp_dbcsr_sm_fm_multiply(orb_h, matrix_v, matrix_hv, Norb)
+            ! silly trick, copy to an array of the right size and add to mo_derivs
+            CALL cp_fm_set_all(mo_derivs_local(1)%matrix, 0.0_dp)
+            CALL cp_fm_to_fm(matrix_hv, mo_derivs_local(1)%matrix, Norb, 1, k_beta+1)
+            CALL copy_fm_to_dbcsr(mo_derivs_local(1)%matrix, tmp_dbcsr(1)%matrix)
+            CALL dbcsr_add(mo_derivs(1)%matrix, tmp_dbcsr(1)%matrix, 1.0_dp, 1.0_dp)
          ENDIF
       ENDIF
       
       ! now apply to SIC correction to each selected orbital
-      DO iorb = 1, Norb
-         ! extract the proper orbital from the mo_coeff
-         CALL get_mo_set(mo_set=mo_array(sic_orbital_list(1, iorb))%mo_set, mo_coeff=mo_coeff)
-         CALL cp_fm_to_fm(mo_coeff, matrix_v, 1, sic_orbital_list(2, iorb), 1)
+      IF (dft_control%sic_scaling_a > 1.0e-5_dp or dft_control%sic_scaling_b > 1.0e-5_dp) THEN
+         DO iorb = 1, Norb
+            ! extract the proper orbital from the mo_coeff
+            CALL get_mo_set(mo_set=mo_array(sic_orbital_list(1, iorb))%mo_set, mo_coeff=mo_coeff)
+            CALL cp_fm_to_fm(mo_coeff, matrix_v, 1, sic_orbital_list(2, iorb), 1)
 
-         ! construct the density matrix and the corresponding density
-         CALL dbcsr_set(orb_density_matrix, 0.0_dp)
-         CALL cp_dbcsr_plus_fm_fm_t(orb_density_matrix, matrix_v=matrix_v, ncol=1, &
+            ! construct the density matrix and the corresponding density
+            CALL dbcsr_set(orb_density_matrix, 0.0_dp)
+            CALL cp_dbcsr_plus_fm_fm_t(orb_density_matrix, matrix_v=matrix_v, ncol=1, &
                                     alpha=1.0_dp)
 
-         CALL calculate_rho_elec(matrix_p=orb_density_matrix, &
+            CALL calculate_rho_elec(matrix_p=orb_density_matrix, &
                                  rho=orb_rho_r, rho_gspace=orb_rho_g, total_rho=total_rho, &
                                  ks_env=ks_env)
 
-         ! write(*,*) 'Orbital ',sic_orbital_list(1,iorb),sic_orbital_list(2,iorb)
-         ! write(*,*) 'Total orbital rho= ',total_rho
+            ! write(*,*) 'Orbital ',sic_orbital_list(1,iorb),sic_orbital_list(2,iorb)
+            ! write(*,*) 'Total orbital rho= ',total_rho
 
-         ! compute the energy functional for this orbital and its derivative
+            ! compute the energy functional for this orbital and its derivative
 
-         CALL pw_poisson_solve(poisson_env, orb_rho_g%pw, ener, work_v_gspace%pw)
-         ! no PBC correction is done here, see "calc_v_sic_rspace" for SIC methods
-         ! with PBC aware corrections
-         energy%hartree = energy%hartree-dft_control%sic_scaling_a*ener
-         IF (.NOT. just_energy) THEN
-            CALL pw_transfer(work_v_gspace%pw, work_v_rspace%pw)
-            CALL pw_scale(work_v_rspace%pw, -dft_control%sic_scaling_a*work_v_rspace%pw%pw_grid%dvol)
-            CALL dbcsr_set(orb_h, 0.0_dp)
-         ENDIF
+            CALL pw_poisson_solve(poisson_env, orb_rho_g%pw, ener, work_v_gspace%pw)
+            ! with PBC aware corrections
+            energy%hartree = energy%hartree-dft_control%sic_scaling_a*ener
+            IF (.NOT. just_energy) THEN
+               CALL pw_transfer(work_v_gspace%pw, work_v_rspace%pw)
+               CALL pw_scale(work_v_rspace%pw, -dft_control%sic_scaling_a*work_v_rspace%pw%pw_grid%dvol)
+               CALL dbcsr_set(orb_h, 0.0_dp)
+            ENDIF
 
-         IF (just_energy) THEN
-            exc = xc_exc_calc(rho_r=rho_r, rho_g=rho_g, tau=tau, xc_section=xc_section, &
+            IF (just_energy) THEN
+               exc = xc_exc_calc(rho_r=rho_r, rho_g=rho_g, tau=tau, xc_section=xc_section, &
                               pw_pool=xc_pw_pool)
-         ELSE
-            CPASSERT(.NOT. compute_virial)
-            CALL xc_vxc_pw_create1(vxc_rho=vxc, rho_r=rho_r, &
+            ELSE
+               CPASSERT(.NOT. compute_virial)
+               CALL xc_vxc_pw_create1(vxc_rho=vxc, rho_r=rho_r, &
                                    rho_g=rho_g, tau=tau, vxc_tau=vxc_tau, exc=exc, xc_section=xc_section, &
                                    pw_pool=xc_pw_pool, compute_virial=compute_virial, virial_xc=virial_xc_tmp)
-            ! add to the existing work_v_rspace
-            work_v_rspace%pw%cr3d = work_v_rspace%pw%cr3d- &
+               ! add to the existing work_v_rspace
+               work_v_rspace%pw%cr3d = work_v_rspace%pw%cr3d- &
                                     dft_control%sic_scaling_b*vxc(1)%pw%pw_grid%dvol*vxc(1)%pw%cr3d
-         END IF
-         energy%exc = energy%exc-dft_control%sic_scaling_b*exc
+            END IF
+            energy%exc = energy%exc-dft_control%sic_scaling_b*exc
 
-         IF (.NOT. just_energy) THEN
-            ! note, orb_h (which is being pointed to with orb_h_p) is zeroed above
-            CALL integrate_v_rspace(v_rspace=work_v_rspace, pmat=orb_density_matrix_p, hmat=orb_h_p, &
+            IF (.NOT. just_energy) THEN
+               ! note, orb_h (which is being pointed to with orb_h_p) is zeroed above
+               CALL integrate_v_rspace(v_rspace=work_v_rspace, pmat=orb_density_matrix_p, hmat=orb_h_p, &
                                     qs_env=qs_env, calculate_forces=calculate_forces)
 
-            ! add this to the mo_derivs
-            CALL cp_dbcsr_sm_fm_multiply(orb_h, matrix_v, matrix_hv, 1)
-            ! silly trick, copy to an array of the right size and add to mo_derivs
-            CALL cp_fm_set_all(mo_derivs_local(sic_orbital_list(3, iorb))%matrix, 0.0_dp)
-            CALL cp_fm_to_fm(matrix_hv, mo_derivs_local(sic_orbital_list(3, iorb))%matrix, 1, 1, sic_orbital_list(2, iorb))
-            CALL copy_fm_to_dbcsr(mo_derivs_local(sic_orbital_list(3, iorb))%matrix, &
+               ! add this to the mo_derivs
+               CALL cp_dbcsr_sm_fm_multiply(orb_h, matrix_v, matrix_hv, 1)
+               ! silly trick, copy to an array of the right size and add to mo_derivs
+               CALL cp_fm_set_all(mo_derivs_local(sic_orbital_list(3, iorb))%matrix, 0.0_dp)
+               CALL cp_fm_to_fm(matrix_hv, mo_derivs_local(sic_orbital_list(3, iorb))%matrix, 1, 1, sic_orbital_list(2, iorb))
+               CALL copy_fm_to_dbcsr(mo_derivs_local(sic_orbital_list(3, iorb))%matrix, &
                                   tmp_dbcsr(sic_orbital_list(3, iorb))%matrix)
-            CALL dbcsr_add(mo_derivs(sic_orbital_list(3, iorb))%matrix, &
+               CALL dbcsr_add(mo_derivs(sic_orbital_list(3, iorb))%matrix, &
                            tmp_dbcsr(sic_orbital_list(3, iorb))%matrix, 1.0_dp, 1.0_dp)
-            !
-            ! need to deallocate vxc
-            CALL pw_pool_give_back_pw(xc_pw_pool, vxc(1)%pw)
-            CALL pw_pool_give_back_pw(xc_pw_pool, vxc(2)%pw)
-            DEALLOCATE (vxc)
+               !
+               ! need to deallocate vxc
+               CALL pw_pool_give_back_pw(xc_pw_pool, vxc(1)%pw)
+               CALL pw_pool_give_back_pw(xc_pw_pool, vxc(2)%pw)
+               DEALLOCATE (vxc)
 
-         ENDIF
-
-      ENDDO
+            ENDIF
+         ENDDO
+      ENDIF
       ! recover the periodic PS
       IF (auxsolver .NE. 1000) THEN
          poisson_env%rebuild = .True.
