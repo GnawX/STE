@@ -1,2 +1,2 @@
 # SIC_EXCITON
-Calculate exciton with ROKS-SIC via CP2K
+Calculate excitonic properties with ROKS-SIC via CP2K
