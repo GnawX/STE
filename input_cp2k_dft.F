@@ -20,7 +20,7 @@ MODULE input_cp2k_dft
         Porezag1995, Repasky2002, Rocha2006, Schenter2008, Schiffmann2015, Seifert1996, &
         Stewart1982, Stewart1989, Stewart2007, Thiel1992, Tozer1996, VanVoorhis2015, &
         VandeVondele2003, VandeVondele2005a, VandeVondele2005b, VandeVondele2006, Weber2008, &
-        Zhao1994, Zhechkov2005
+        Zhao1994, Zhechkov2005, Martyna1999, Genovese2006, Genovese2007
    USE cp_output_handling,              ONLY: add_last_numeric,&
                                               cp_print_key_section_create,&
                                               debug_print_level,&
