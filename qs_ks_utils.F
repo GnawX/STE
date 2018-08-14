@@ -602,7 +602,7 @@ CONTAINS
 
       ! decoupling and PBC correction
       auxsolver = 1000
-      IF (.NOT. ALL(poisson_env%parameter%periodic = 0)) THEN
+      IF (.NOT. ALL(poisson_env%parameters%periodic == 0)) THEN
          ! extract the proper orbital for decoupling
          CALL get_mo_set(mo_set=mo_array(1)%mo_set, mo_coeff=mo_coeff)
          CALL cp_fm_to_fm(mo_coeff, matrix_v, Norb, k_beta+1, 1)
@@ -651,7 +651,7 @@ CONTAINS
       ENDIF
       
       ! now apply to SIC correction to each selected orbital
-      IF (dft_control%sic_scaling_a > 1.0e-5_dp or dft_control%sic_scaling_b > 1.0e-5_dp) THEN
+      IF (dft_control%sic_scaling_a > 1.0e-5_dp .OR. dft_control%sic_scaling_b > 1.0e-5_dp) THEN
          DO iorb = 1, Norb
             ! extract the proper orbital from the mo_coeff
             CALL get_mo_set(mo_set=mo_array(sic_orbital_list(1, iorb))%mo_set, mo_coeff=mo_coeff)
