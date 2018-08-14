@@ -8,6 +8,7 @@
 !> \par History
 !>      10.2005 moved out of input_cp2k [fawzi]
 !> \author fawzi
+!> Added keyword 'POISSON_SOLVER' in SIC section x.w.
 ! **************************************************************************************************
 MODULE input_cp2k_dft
    USE bibliography,                    ONLY: &
