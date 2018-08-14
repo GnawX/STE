@@ -6,6 +6,7 @@
 ! **************************************************************************************************
 !> \brief Defines control structures, which contain the parameters and the
 !>      settings for the DFT-based calculations.
+!>  added 'psolver' in dft_control type x.w.
 ! **************************************************************************************************
 MODULE cp_control_types
    USE cp_fm_types,                     ONLY: cp_fm_p_type,&
