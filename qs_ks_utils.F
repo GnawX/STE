@@ -628,7 +628,7 @@ CONTAINS
                              orb_rho_g, &
                              ener_, &
                              v_hartree_gspace=work_v_gspace_, &
-                             calculate_forces=calculate_forces, &
+                             calculate_forces=.FALSE., &
                              Itype_of_density="SPIN")
          ELSE         
             poisson_env%rebuild = .True.
