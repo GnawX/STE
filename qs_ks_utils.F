@@ -620,7 +620,7 @@ CONTAINS
 
          CALL pw_poisson_solve(poisson_env, orb_rho_g%pw, ener_, work_v_gspace_%pw)
          ener = ener_
-         work_v_gspace = work_v_gspace_
+         work_v_gspace%pw%cc = work_v_gspace_%pw%cc
          
          IF (dft_control%psolver == 4) THEN   ! multipole ps
             ! Correct for  DDAP charges 
