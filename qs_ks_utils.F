@@ -399,7 +399,8 @@ CONTAINS
       CHARACTER(*), PARAMETER :: routineN = 'sic_explicit_orbitals', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, i, Iorb, k_alpha, k_beta, Norb, auxsolver, auxperiodic(3)
+      INTEGER                                            :: handle, i, Iorb, k_alpha, k_beta, Norb, auxsolver, &
+                                                            auxperiodic(3)
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: sic_orbital_list
       LOGICAL                                            :: compute_virial, uniform_occupation
       REAL(KIND=dp)                                      :: ener, ener_, exc, total_rho
@@ -616,17 +617,29 @@ CONTAINS
                                  rho=orb_rho_r, rho_gspace=orb_rho_g, total_rho=total_rho, &
                                  ks_env=ks_env)
 
-         ! compute the energy functional for this orbital and its derivative 
 
-         CALL pw_poisson_solve(poisson_env, orb_rho_g%pw, ener, work_v_gspace%pw)
-         
-         poisson_env%rebuild = .True.
-         auxsolver = poisson_env%parameters%solver
-         auxperiodic = poisson_env%parameters%periodic
-         poisson_env%parameters%solver = dft_control%psolver
-         poisson_env%parameters%periodic = (/0,0,0/)  ! non-periodic
-         
          CALL pw_poisson_solve(poisson_env, orb_rho_g%pw, ener_, work_v_gspace_%pw)
+         ener = ener_
+         work_v_gspace = work_v_gspace_
+         
+         IF (dft_control%psolver == 4) THEN   ! multipole ps
+            ! Correct for  DDAP charges 
+            CALL cp_ddapc_apply_CD(qs_env, &
+                             orb_rho_g, &
+                             ener_, &
+                             v_hartree_gspace=work_v_gspace_, &
+                             calculate_forces=calculate_forces, &
+                             Itype_of_density="SPIN")
+         ELSE         
+            poisson_env%rebuild = .True.
+            auxsolver = poisson_env%parameters%solver
+            auxperiodic = poisson_env%parameters%periodic
+            poisson_env%parameters%solver = dft_control%psolver
+            poisson_env%parameters%periodic = (/0,0,0/)  ! non-periodic
+         
+            CALL pw_poisson_solve(poisson_env, orb_rho_g%pw, ener_, work_v_gspace_%pw)
+         ENDIF
+         
          ! decoupling
          ener = ener - ener_
          work_v_gspace%pw%cc = work_v_gspace%pw%cc - work_v_gspace_%pw%cc
@@ -672,6 +685,15 @@ CONTAINS
             ! compute the energy functional for this orbital and its derivative
 
             CALL pw_poisson_solve(poisson_env, orb_rho_g%pw, ener, work_v_gspace%pw)
+            IF (dft_control%psolver == 4) THEN   ! multipole ps
+               ! Correct for  DDAP charges 
+               CALL cp_ddapc_apply_CD(qs_env, &
+                             orb_rho_g, &
+                             ener, &
+                             v_hartree_gspace=work_v_gspace, &
+                             calculate_forces=calculate_forces, &
+                             Itype_of_density="SPIN")
+            ENDIF
             ! with PBC aware corrections
             energy%hartree = energy%hartree-dft_control%sic_scaling_a*ener
             IF (.NOT. just_energy) THEN
