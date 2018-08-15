@@ -570,7 +570,7 @@ CONTAINS
 
       CALL get_mo_set(mo_set=mo_array(1)%mo_set, mo_coeff=mo_coeff)
 
-      CALL cp_fm_struct_create(fm_struct_tmp, ncol_global=1, &
+      CALL cp_fm_struct_create(fm_struct_tmp, ncol_global=Norb, &
                                template_fmstruct=mo_coeff%matrix_struct)
       CALL cp_fm_create(matrix_v, fm_struct_tmp, name="matrix_v")
       CALL cp_fm_create(matrix_hv, fm_struct_tmp, name="matrix_hv")
