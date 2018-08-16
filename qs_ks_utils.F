@@ -403,7 +403,7 @@ CONTAINS
                                                             auxperiodic(3)
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: sic_orbital_list
       LOGICAL                                            :: compute_virial, uniform_occupation
-      REAL(KIND=dp)                                      :: ener, ener_, exc, total_rho
+      REAL(KIND=dp)                                      :: ener, ener_, exc, total_rho, e_decpl
       REAL(KIND=dp), DIMENSION(3, 3)                     :: virial_xc_tmp
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mo_derivs_local
@@ -602,6 +602,10 @@ CONTAINS
       !         in_space=REALSPACE, use_data=REALDATA3D)
 
       ! decoupling and PBC correction
+      ! decoupling is only avaible for DDAPC
+      ! because the periodic Psolvers suffer from the ill-defined Hartree
+      ! energy of charge in PBC
+      ! so E(peridoic3D)-E(0D) is ill-defined
       auxsolver = 1000
       IF (.NOT. ALL(poisson_env%parameters%periodic == 0)) THEN
          ! extract the proper orbital for decoupling
@@ -618,50 +622,26 @@ CONTAINS
                                  ks_env=ks_env)
 
 
-         CALL pw_poisson_solve(poisson_env, orb_rho_g%pw, ener_, work_v_gspace_%pw)
-         ener = ener_
-         work_v_gspace%pw%cc = work_v_gspace_%pw%cc
+         CALL pw_poisson_solve(poisson_env, orb_rho_g%pw, ener, work_v_gspace%pw)
          
-         IF (dft_control%psolver == 4) THEN   ! multipole ps
-            ! Correct for  DDAP charges 
-            CALL cp_ddapc_apply_CD(qs_env, &
+         ! Correct for  DDAP charges 
+         CALL cp_ddapc_apply_CD2(qs_env, &
                              orb_rho_g, &
-                             ener_, &
-                             v_hartree_gspace=work_v_gspace_, &
+                             ener, &
+                             v_hartree_gspace=work_v_gspace, &
                              calculate_forces=.FALSE., &
-                             Itype_of_density="SPIN")
-         ELSE         
-            poisson_env%rebuild = .True.
-            auxsolver = poisson_env%parameters%solver
-            auxperiodic = poisson_env%parameters%periodic
-            poisson_env%parameters%solver = dft_control%psolver
-            poisson_env%parameters%periodic = (/0,0,0/)  ! non-periodic
+                             Itype_of_density="SPIN",&
+                             e_decpl)
+                             
+         energy%hartree = energy%hartree-e_decpl
          
-            CALL pw_poisson_solve(poisson_env, orb_rho_g%pw, ener_, work_v_gspace_%pw)
-         ENDIF
-         
-         ! decoupling
-         ener = ener - ener_
-         work_v_gspace%pw%cc = work_v_gspace%pw%cc - work_v_gspace_%pw%cc
-     
-         energy%hartree = energy%hartree-ener
-         IF (.NOT. just_energy) THEN
-            CALL pw_transfer(work_v_gspace%pw, work_v_rspace%pw)
-            CALL pw_scale(work_v_rspace%pw, -work_v_rspace%pw%pw_grid%dvol)
-            CALL dbcsr_set(orb_h, 0.0_dp)
-
-            ! note, orb_h (which is being pointed to with orb_h_p) is zeroed above
-            CALL integrate_v_rspace(v_rspace=work_v_rspace, pmat=orb_density_matrix_p, hmat=orb_h_p, &
-                                    qs_env=qs_env, calculate_forces=calculate_forces)
-                                    
-            CALL cp_dbcsr_sm_fm_multiply(orb_h, matrix_v, matrix_hv, Norb)
-            ! silly trick, copy to an array of the right size and add to mo_derivs
-            CALL cp_fm_set_all(mo_derivs_local(1)%matrix, 0.0_dp)
-            CALL cp_fm_to_fm(matrix_hv, mo_derivs_local(1)%matrix, Norb, 1, k_beta+1)
-            CALL copy_fm_to_dbcsr(mo_derivs_local(1)%matrix, tmp_dbcsr(1)%matrix)
-            CALL dbcsr_add(mo_derivs(1)%matrix, tmp_dbcsr(1)%matrix, 1.0_dp, 1.0_dp)
-         ENDIF
+         poisson_env%rebuild = .True.
+         auxsolver = poisson_env%parameters%solver
+         auxperiodic = poisson_env%parameters%periodic
+         poisson_env%parameters%solver = dft_control%psolver
+         poisson_env%parameters%periodic = (/0,0,0/)  ! non-periodic                 
       ENDIF
+
       
       ! now apply to SIC correction to each selected orbital
       IF (dft_control%sic_scaling_a > 1.0e-5_dp .OR. dft_control%sic_scaling_b > 1.0e-5_dp) THEN
@@ -687,7 +667,7 @@ CONTAINS
             CALL pw_poisson_solve(poisson_env, orb_rho_g%pw, ener, work_v_gspace%pw)
             IF (dft_control%psolver == 4) THEN   ! multipole ps
                ! Correct for  DDAP charges 
-               CALL cp_ddapc_apply_CD(qs_env, &
+               CALL cp_ddapc_apply_CD2(qs_env, &
                              orb_rho_g, &
                              ener, &
                              v_hartree_gspace=work_v_gspace, &
