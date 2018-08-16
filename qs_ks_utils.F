@@ -27,7 +27,7 @@ MODULE qs_ks_utils
                                               cp_dbcsr_sm_fm_multiply,&
                                               dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set
-   USE cp_ddapc,                        ONLY: cp_ddapc_apply_CD2
+   USE cp_ddapc,                        ONLY: cp_ddapc_apply_CD, cp_ddapc_apply_CD2
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
@@ -631,7 +631,7 @@ CONTAINS
                              v_hartree_gspace=work_v_gspace, &
                              calculate_forces=.FALSE., &
                              Itype_of_density="SPIN",&
-                             e_decpl)
+                             e_decpl=e_decpl)
                              
          energy%hartree = energy%hartree-e_decpl
          
