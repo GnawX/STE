@@ -671,7 +671,7 @@ CONTAINS
                              orb_rho_g, &
                              ener, &
                              v_hartree_gspace=work_v_gspace, &
-                             calculate_forces=calculate_forces, &
+                             calculate_forces=.FALSE., &
                              Itype_of_density="SPIN")
             ENDIF
             ! with PBC aware corrections
