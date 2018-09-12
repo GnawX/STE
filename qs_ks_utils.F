@@ -606,6 +606,7 @@ CONTAINS
       ! because the periodic Psolvers suffer from the ill-defined Hartree
       ! energy of charge in PBC
       ! so E(peridoic3D)-E(0D) is ill-defined
+      ! only the energy is considered, the force and potential are neglected.
       auxsolver = 1000
       IF (.NOT. ALL(poisson_env%parameters%periodic == 0)) THEN
          ! extract the proper orbital for decoupling
@@ -635,6 +636,7 @@ CONTAINS
                              
          energy%hartree = energy%hartree-e_decpl
          
+        
          poisson_env%rebuild = .True.
          auxsolver = poisson_env%parameters%solver
          auxperiodic = poisson_env%parameters%periodic
@@ -663,17 +665,25 @@ CONTAINS
             ! write(*,*) 'Total orbital rho= ',total_rho
 
             ! compute the energy functional for this orbital and its derivative
-
-            CALL pw_poisson_solve(poisson_env, orb_rho_g%pw, ener, work_v_gspace%pw)
-            IF (dft_control%psolver == 4) THEN   ! multipole ps
-               ! Correct for  DDAP charges 
-               CALL cp_ddapc_apply_CD2(qs_env, &
+            
+            IF (auxsolver == 1000) THEN
+                CALL pw_poisson_solve(poisson_env, orb_rho_g%pw, ener, work_v_gspace%pw)
+            ELSEIF (dft_control%psolver == 4) THEN
+                poisson_env%rebuild = .True.
+                poisson_env%parameters%solver = auxsolver
+                poisson_env%parameters%periodic = auxperiodic
+                CALL pw_poisson_solve(poisson_env, orb_rho_g%pw, ener, work_v_gspace%pw)
+           
+                CALL cp_ddapc_apply_CD2(qs_env, &
                              orb_rho_g, &
                              ener, &
                              v_hartree_gspace=work_v_gspace, &
                              calculate_forces=.FALSE., &
                              Itype_of_density="SPIN")
+            ELSE
+                CALL pw_poisson_solve(poisson_env, orb_rho_g%pw, ener, work_v_gspace%pw)
             ENDIF
+            
             ! with PBC aware corrections
             energy%hartree = energy%hartree-dft_control%sic_scaling_a*ener
             IF (.NOT. just_energy) THEN
