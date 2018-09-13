@@ -602,10 +602,6 @@ CONTAINS
       !         in_space=REALSPACE, use_data=REALDATA3D)
 
       ! decoupling and PBC correction
-      ! decoupling is only avaible for DDAPC
-      ! because the periodic Psolvers suffer from the ill-defined Hartree
-      ! energy of charge in PBC
-      ! so E(peridoic3D)-E(0D) is ill-defined
       ! only the energy is considered, the force and potential are neglected.
       auxsolver = 1000
       IF (.NOT. ALL(poisson_env%parameters%periodic == 0)) THEN
@@ -625,23 +621,27 @@ CONTAINS
 
          CALL pw_poisson_solve(poisson_env, orb_rho_g%pw, ener, work_v_gspace%pw)
          
-         ! Correct for  DDAP charges 
-         CALL cp_ddapc_apply_CD2(qs_env, &
-                             orb_rho_g, &
-                             ener, &
-                             v_hartree_gspace=work_v_gspace, &
-                             calculate_forces=.FALSE., &
-                             Itype_of_density="SPIN",&
-                             e_decpl=e_decpl)
-                             
-         energy%hartree = energy%hartree-e_decpl
+         IF (dft_control%psolver == 4) THEN
+            ! Correct for  DDAP charges 
+            CALL cp_ddapc_apply_CD2(qs_env, &
+                                   orb_rho_g, &
+                                   ener, &
+                                   v_hartree_gspace=work_v_gspace, &
+                                   calculate_forces=.FALSE., &
+                                   Itype_of_density="SPIN",&
+                                   e_decpl=e_decpl)
+         ELSE
+             poisson_env%rebuild = .True.
+             auxsolver = poisson_env%parameters%solver
+             auxperiodic = poisson_env%parameters%periodic
+             poisson_env%parameters%solver = dft_control%psolver
+             poisson_env%parameters%periodic = (/0,0,0/)  ! non-periodic  
+             CALL pw_poisson_solve(poisson_env, orb_rho_g%pw, ener_, work_v_gspace_%pw)
+             e_decpl = ener_ - ener
+         ENDIF
          
-        
-         poisson_env%rebuild = .True.
-         auxsolver = poisson_env%parameters%solver
-         auxperiodic = poisson_env%parameters%periodic
-         poisson_env%parameters%solver = dft_control%psolver
-         poisson_env%parameters%periodic = (/0,0,0/)  ! non-periodic                 
+         energy%hartree = energy%hartree+e_decpl
+                
       ENDIF
 
       
@@ -669,9 +669,6 @@ CONTAINS
             IF (auxsolver == 1000) THEN
                 CALL pw_poisson_solve(poisson_env, orb_rho_g%pw, ener, work_v_gspace%pw)
             ELSE IF (dft_control%psolver == 4) THEN
-                poisson_env%rebuild = .True.
-                poisson_env%parameters%solver = auxsolver
-                poisson_env%parameters%periodic = auxperiodic
                 CALL pw_poisson_solve(poisson_env, orb_rho_g%pw, ener, work_v_gspace%pw)
            
                 CALL cp_ddapc_apply_CD(qs_env, &
