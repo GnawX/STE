@@ -667,16 +667,17 @@ CONTAINS
             ! compute the energy functional for this orbital and its derivative
             
             IF (auxsolver == 1000) THEN
-                CALL pw_poisson_solve(poisson_env, orb_rho_g%pw, ener, work_v_gspace%pw)
-            ELSE IF (dft_control%psolver == 4) THEN
-                CALL pw_poisson_solve(poisson_env, orb_rho_g%pw, ener, work_v_gspace%pw)
-           
-                CALL cp_ddapc_apply_CD(qs_env, &
+                IF (.NOT. ALL(poisson_env%parameters%periodic == 0)) THEN
+                    CALL pw_poisson_solve(poisson_env, orb_rho_g%pw, ener, work_v_gspace%pw)
+                    CALL cp_ddapc_apply_CD(qs_env, &
                              orb_rho_g, &
                              ener, &
                              v_hartree_gspace=work_v_gspace, &
                              calculate_forces=.FALSE., &
                              Itype_of_density="SPIN")
+                ELSE
+                    CALL pw_poisson_solve(poisson_env, orb_rho_g%pw, ener, work_v_gspace%pw)
+                ENDIF
             ELSE
                 CALL pw_poisson_solve(poisson_env, orb_rho_g%pw, ener, work_v_gspace%pw)
             ENDIF
