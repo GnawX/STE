@@ -110,7 +110,8 @@ CONTAINS
       allocate_ddapc_env = qs_env%cp_ddapc_ewald%do_solvation .OR. &
                            qs_env%cp_ddapc_ewald%do_qmmm_periodic_decpl .OR. &
                            qs_env%cp_ddapc_ewald%do_decoupling .OR. &
-                           qs_env%cp_ddapc_ewald%do_restraint
+                           qs_env%cp_ddapc_ewald%do_restraint .OR. &
+                           qs_env%cp_ddapc_ewald%do_sicdecoupling 
       unimplemented = dft_control%qs_control%semi_empirical .OR. &
                       dft_control%qs_control%dftb
       IF (allocate_ddapc_env .AND. unimplemented) THEN
