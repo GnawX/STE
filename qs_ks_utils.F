@@ -674,7 +674,7 @@ CONTAINS
                 poisson_env%parameters%periodic = auxperiodic
                 CALL pw_poisson_solve(poisson_env, orb_rho_g%pw, ener, work_v_gspace%pw)
            
-                CALL cp_ddapc_apply_CD2(qs_env, &
+                CALL cp_ddapc_apply_CD(qs_env, &
                              orb_rho_g, &
                              ener, &
                              v_hartree_gspace=work_v_gspace, &
