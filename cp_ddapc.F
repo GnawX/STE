@@ -254,7 +254,8 @@ CONTAINS
       need_f = .FALSE.
       IF (PRESENT(calculate_forces)) need_f = calculate_forces
       logger => cp_get_default_logger()
-      apply_decpl = qs_env%cp_ddapc_ewald%do_decoupling .OR. qs_env%cp_ddapc_ewald%do_qmmm_periodic_decpl
+      apply_decpl = qs_env%cp_ddapc_ewald%do_decoupling .OR. qs_env%cp_ddapc_ewald%do_qmmm_periodic_decpl .OR. &
+                    qs_env%cp_ddapc_ewald%do_sicdecoupling
       IF (apply_decpl) THEN
          ! Initialize
          NULLIFY (multipole_section, &
@@ -279,7 +280,7 @@ CONTAINS
 
          density_fit_section => section_vals_get_subs_vals(force_env_section, "DFT%DENSITY_FITTING")
 
-         IF (qs_env%cp_ddapc_ewald%do_decoupling) THEN
+         IF (qs_env%cp_ddapc_ewald%do_decoupling .OR. qs_env%cp_ddapc_ewald%do_sicdecoupling) THEN
             multipole_section => section_vals_get_subs_vals(poisson_section, "MULTIPOLE")
          END IF
          IF (qs_env%cp_ddapc_ewald%do_qmmm_periodic_decpl) THEN
@@ -379,8 +380,8 @@ CONTAINS
       need_f = .FALSE.
       IF (PRESENT(calculate_forces)) need_f = calculate_forces
       logger => cp_get_default_logger()
-      !apply_decpl = qs_env%cp_ddapc_ewald%do_decoupling .OR. qs_env%cp_ddapc_ewald%do_qmmm_periodic_decpl
-      apply_decpl = .True.
+      apply_decpl = qs_env%cp_ddapc_ewald%do_decoupling .OR. qs_env%cp_ddapc_ewald%do_qmmm_periodic_decpl .OR. &
+                    qs_env%cp_ddapc_ewald%do_sicdecoupling
       IF (apply_decpl) THEN
          ! Initialize
          NULLIFY (multipole_section, &
@@ -405,9 +406,9 @@ CONTAINS
 
          density_fit_section => section_vals_get_subs_vals(force_env_section, "DFT%DENSITY_FITTING")
 
-         !IF (qs_env%cp_ddapc_ewald%do_decoupling) THEN
+         IF (qs_env%cp_ddapc_ewald%do_decoupling .OR. qs_env%cp_ddapc_ewald%do_sicdecoupling) THEN
             multipole_section => section_vals_get_subs_vals(poisson_section, "MULTIPOLE")
-         !END IF
+         END IF
          IF (qs_env%cp_ddapc_ewald%do_qmmm_periodic_decpl) THEN
             qmmm_periodic_section => section_vals_get_subs_vals(force_env_section, "QMMM%PERIODIC")
             multipole_section => section_vals_get_subs_vals(qmmm_periodic_section, "MULTIPOLE")
