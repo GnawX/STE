@@ -263,7 +263,7 @@ CONTAINS
 
       INTEGER                                            :: my_val, npts(3), output_unit
       INTEGER, DIMENSION(:), POINTER                     :: ngrids
-      LOGICAL                                            :: analyt, decoupling, sicdecoupling &
+      LOGICAL                                            :: analyt, decoupling, sicdecoupling, &
                                                             do_qmmm_periodic_decpl, do_restraint, &
                                                             do_restraintB, do_solvation
       REAL(KIND=dp)                                      :: hmat(3, 3)
