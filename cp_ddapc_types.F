@@ -68,6 +68,7 @@ MODULE cp_ddapc_types
       LOGICAL                                    :: do_solvation
       LOGICAL                                    :: do_property
       LOGICAL                                    :: do_restraint
+      LOGICAL                                    :: do_sicdecoupling
       TYPE(section_vals_type), POINTER :: ewald_section
       TYPE(pw_pool_type), POINTER :: pw_pool_qm, pw_pool_mm
       TYPE(pw_grid_type), POINTER :: pw_grid_qm, pw_grid_mm
@@ -138,8 +139,8 @@ CONTAINS
                           radii, &
                           iw2, &
                           Vol)
-      IF (cp_ddapc_ewald%do_qmmm_periodic_decpl .OR. &
-          cp_ddapc_ewald%do_decoupling) THEN
+      IF (cp_ddapc_ewald%do_qmmm_periodic_decpl .OR. cp_ddapc_ewald%do_decoupling .OR. &
+          cp_ddapc_ewald%do_sicdecoupling) THEN
          !
          ! Evaluate the matrix for the Classical contribution to the coupling/decoupling scheme
          !
@@ -152,9 +153,10 @@ CONTAINS
                               particle_set, &
                               cp_ddapc_env%Md, &
                               radii)
-         IF (cp_ddapc_ewald%do_qmmm_periodic_decpl .OR. cp_ddapc_ewald%do_decoupling) THEN
+         IF (cp_ddapc_ewald%do_qmmm_periodic_decpl .OR. cp_ddapc_ewald%do_decoupling .OR. &
+            cp_ddapc_ewald%do_sicdecoupling) THEN
             ALLOCATE (cp_ddapc_env%Mt(SIZE(cp_ddapc_env%Md, 1), SIZE(cp_ddapc_env%Md, 2)))
-            IF (cp_ddapc_ewald%do_decoupling) THEN
+            IF (cp_ddapc_ewald%do_decoupling .OR. cp_ddapc_ewald%do_sicdecoupling) THEN
                ! Just decoupling
                cp_ddapc_env%Mt = cp_ddapc_env%Md
             ELSE
@@ -261,7 +263,7 @@ CONTAINS
 
       INTEGER                                            :: my_val, npts(3), output_unit
       INTEGER, DIMENSION(:), POINTER                     :: ngrids
-      LOGICAL                                            :: analyt, decoupling, &
+      LOGICAL                                            :: analyt, decoupling, sicdecoupling &
                                                             do_qmmm_periodic_decpl, do_restraint, &
                                                             do_restraintB, do_solvation
       REAL(KIND=dp)                                      :: hmat(3, 3)
@@ -270,7 +272,7 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), POINTER :: cell_section, grid_print_section, multipole_section, &
          poisson_section, printC_section, qmmm_per_section, restraint_section, restraint_sectionB, &
-         solvation_section
+         solvation_section, sic_section
 
       logger => cp_get_default_logger()
       output_unit = cp_logger_get_default_io_unit(logger)
@@ -292,10 +294,12 @@ CONTAINS
       restraint_section => section_vals_get_subs_vals(force_env_section, "DFT%QS%DDAPC_RESTRAINT")
       restraint_sectionB => section_vals_get_subs_vals(force_env_section, &
                                                        "PROPERTIES%ET_COUPLING%DDAPC_RESTRAINT_A")
+      sic_section => section_vals_get_subs_vals(force_env_section, "DFT%SIC")                                                 
       CALL section_vals_get(solvation_section, explicit=do_solvation)
       CALL section_vals_get(poisson_section, explicit=decoupling)
       CALL section_vals_get(restraint_section, explicit=do_restraint)
       CALL section_vals_get(restraint_sectionB, explicit=do_restraintB)
+      CALL section_vals_get(sic_section, explicit=sicdecoupling)
       do_qmmm_periodic_decpl = qmmm_decoupl
       cp_ddapc_ewald%do_solvation = do_solvation
       cp_ddapc_ewald%do_qmmm_periodic_decpl = do_qmmm_periodic_decpl
@@ -322,12 +326,17 @@ CONTAINS
          END SELECT
       END IF
       cp_ddapc_ewald%do_decoupling = decoupling
+      IF ((.NOT. decoupling) .AND. sicdecoupling) THEN
+          cp_ddapc_ewald%do_sicdecoupling = .True.
+          multipole_section => section_vals_get_subs_vals(poisson_section, "MULTIPOLE")
+      ENDIF
       IF (cp_ddapc_ewald%do_qmmm_periodic_decpl) THEN
          ! QMMM periodic
          multipole_section => section_vals_get_subs_vals(qmmm_per_section, "MULTIPOLE")
       END IF
       cp_ddapc_ewald%ewald_section => multipole_section
-      IF (cp_ddapc_ewald%do_decoupling .OR. cp_ddapc_ewald%do_qmmm_periodic_decpl) THEN
+      IF (cp_ddapc_ewald%do_decoupling .OR. cp_ddapc_ewald%do_qmmm_periodic_decpl .OR. &
+          cp_ddapc_ewald%do_sicdecoupling) THEN
          ! Do we do the calculation analytically or interpolating the g-space factor?
          CALL section_vals_val_get(multipole_section, "ANALYTICAL_GTERM", l_val=analyt)
          IF (.NOT. analyt) THEN
