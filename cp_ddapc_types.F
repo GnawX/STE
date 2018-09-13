@@ -326,10 +326,19 @@ CONTAINS
          END SELECT
       END IF
       cp_ddapc_ewald%do_decoupling = decoupling
-      IF ((.NOT. decoupling) .AND. sicdecoupling) THEN
-          cp_ddapc_ewald%do_sicdecoupling = .True.
-          multipole_section => section_vals_get_subs_vals(poisson_section, "MULTIPOLE")
-      ENDIF
+      
+      IF (sicdecoupling) THEN
+         ! Simple decoupling technique
+         CALL section_vals_val_get(sic_section, "POISSON_SOLVER", i_val=my_val)
+         SELECT CASE (my_val)
+         CASE (pw_poisson_multipole)
+            multipole_section => section_vals_get_subs_vals(poisson_section, "MULTIPOLE")
+         CASE DEFAULT
+            sicdecoupling = .FALSE.
+         END SELECT
+      END IF
+      cp_ddapc_ewald%do_sicdecoupling = (.NOT. decoupling) .AND. sicdecoupling
+      
       IF (cp_ddapc_ewald%do_qmmm_periodic_decpl) THEN
          ! QMMM periodic
          multipole_section => section_vals_get_subs_vals(qmmm_per_section, "MULTIPOLE")
