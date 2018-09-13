@@ -668,7 +668,7 @@ CONTAINS
             
             IF (auxsolver == 1000) THEN
                 CALL pw_poisson_solve(poisson_env, orb_rho_g%pw, ener, work_v_gspace%pw)
-            ELSEIF (dft_control%psolver == 4) THEN
+            ELSE IF (dft_control%psolver == 4) THEN
                 poisson_env%rebuild = .True.
                 poisson_env%parameters%solver = auxsolver
                 poisson_env%parameters%periodic = auxperiodic
