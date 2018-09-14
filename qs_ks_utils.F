@@ -411,7 +411,7 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: matrix_hv, matrix_v, mo_coeff
       TYPE(dbcsr_p_type)                                 :: orb_density_matrix_p, orb_h_p
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mo_derivs, rho_ao, tmp_dbcsr
-      TYPE(dbcsr_type), POINTER                          :: orb_density_matrix, orb_h
+      TYPE(dbcsr_type), POINTER                          :: orb_density_matrix, orb_density_matrix_, orb_h
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mo_array
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_p_type)                                    :: orb_rho_g, orb_rho_r, tmp_g, tmp_r, &
@@ -562,6 +562,10 @@ CONTAINS
                       name="orb_density_matrix")
       CALL dbcsr_set(orb_density_matrix, 0.0_dp)
       orb_density_matrix_p%matrix => orb_density_matrix
+      
+      ALLOCATE (orb_density_matrix_)
+      CALL dbcsr_copy(orb_density_matrix_, rho_ao(1)%matrix, &
+                      name="orb_density_matrix")
 
       ALLOCATE (orb_h)
       CALL dbcsr_copy(orb_h, rho_ao(1)%matrix, &
@@ -571,7 +575,7 @@ CONTAINS
 
       CALL get_mo_set(mo_set=mo_array(1)%mo_set, mo_coeff=mo_coeff)
 
-      CALL cp_fm_struct_create(fm_struct_tmp, ncol_global=Norb, &
+      CALL cp_fm_struct_create(fm_struct_tmp, ncol_global=1, &
                                template_fmstruct=mo_coeff%matrix_struct)
       CALL cp_fm_create(matrix_v, fm_struct_tmp, name="matrix_v")
       CALL cp_fm_create(matrix_hv, fm_struct_tmp, name="matrix_hv")
@@ -607,13 +611,23 @@ CONTAINS
       IF (.NOT. ALL(poisson_env%parameters%periodic == 0)) THEN
          ! extract the proper orbital for decoupling
          CALL get_mo_set(mo_set=mo_array(1)%mo_set, mo_coeff=mo_coeff)
-         CALL cp_fm_to_fm(mo_coeff, matrix_v, Norb, k_beta+1, 1)
+         CALL cp_fm_to_fm(mo_coeff, matrix_v, 1, k_alpha, 1)
 
          ! construct the density matrix and the corresponding density
          CALL dbcsr_set(orb_density_matrix, 0.0_dp)
-         CALL cp_dbcsr_plus_fm_fm_t(orb_density_matrix, matrix_v=matrix_v, ncol=Norb, &
+         CALL cp_dbcsr_plus_fm_fm_t(orb_density_matrix, matrix_v=matrix_v, ncol=1, &
                                     alpha=1.0_dp)
+                                    
+         CALL get_mo_set(mo_set=mo_array(1)%mo_set, mo_coeff=mo_coeff)
+         CALL cp_fm_to_fm(mo_coeff, matrix_v, 1, k_beta+1, 1)
 
+         ! construct the density matrix and the corresponding density
+         CALL dbcsr_set(orb_density_matrix_, 0.0_dp)
+         CALL cp_dbcsr_plus_fm_fm_t(orb_density_matrix_, matrix_v=matrix_v, ncol=1, &
+                                    alpha=1.0_dp)
+                                    
+         CALL dbcsr_add(orb_density_matrix, orb_density_matrix_, 1.0_dp, -1.0_dp)
+         
          CALL calculate_rho_elec(matrix_p=orb_density_matrix, &
                                  rho=orb_rho_r, rho_gspace=orb_rho_g, total_rho=total_rho, &
                                  ks_env=ks_env)
