@@ -610,57 +610,57 @@ CONTAINS
       auxsolver = 1000
       IF (.NOT. ALL(poisson_env%parameters%periodic == 0)) THEN
          ! extract the proper orbital for decoupling
-         CALL get_mo_set(mo_set=mo_array(1)%mo_set, mo_coeff=mo_coeff)
-         CALL cp_fm_to_fm(mo_coeff, matrix_v, 1, k_alpha, 1)
+         !CALL get_mo_set(mo_set=mo_array(1)%mo_set, mo_coeff=mo_coeff)
+         !CALL cp_fm_to_fm(mo_coeff, matrix_v, 1, k_alpha, 1)
 
          ! construct the density matrix and the corresponding density
-         CALL dbcsr_set(orb_density_matrix, 0.0_dp)
-         CALL cp_dbcsr_plus_fm_fm_t(orb_density_matrix, matrix_v=matrix_v, ncol=1, &
-                                    alpha=1.0_dp)
+         !CALL dbcsr_set(orb_density_matrix, 0.0_dp)
+         !CALL cp_dbcsr_plus_fm_fm_t(orb_density_matrix, matrix_v=matrix_v, ncol=1, &
+         !                           alpha=1.0_dp)
                                     
-         CALL get_mo_set(mo_set=mo_array(1)%mo_set, mo_coeff=mo_coeff)
-         CALL cp_fm_to_fm(mo_coeff, matrix_v, 1, k_beta+1, 1)
+         !CALL get_mo_set(mo_set=mo_array(1)%mo_set, mo_coeff=mo_coeff)
+         !CALL cp_fm_to_fm(mo_coeff, matrix_v, 1, k_beta+1, 1)
 
          ! construct the density matrix and the corresponding density
-         CALL dbcsr_set(orb_density_matrix_, 0.0_dp)
-         CALL cp_dbcsr_plus_fm_fm_t(orb_density_matrix_, matrix_v=matrix_v, ncol=1, &
-                                    alpha=1.0_dp)
+         !CALL dbcsr_set(orb_density_matrix_, 0.0_dp)
+         !CALL cp_dbcsr_plus_fm_fm_t(orb_density_matrix_, matrix_v=matrix_v, ncol=1, &
+         !                           alpha=1.0_dp)
                                     
-         CALL dbcsr_add(orb_density_matrix, orb_density_matrix_, 1.0_dp, -1.0_dp)
+         !CALL dbcsr_add(orb_density_matrix, orb_density_matrix_, 1.0_dp, -1.0_dp)
          
-         CALL calculate_rho_elec(matrix_p=orb_density_matrix, &
-                                 rho=orb_rho_r, rho_gspace=orb_rho_g, total_rho=total_rho, &
-                                 ks_env=ks_env)
+         !CALL calculate_rho_elec(matrix_p=orb_density_matrix, &
+         !                        rho=orb_rho_r, rho_gspace=orb_rho_g, total_rho=total_rho, &
+         !                        ks_env=ks_env)
 
 
-         CALL pw_poisson_solve(poisson_env, orb_rho_g%pw, ener, work_v_gspace%pw)
+         !CALL pw_poisson_solve(poisson_env, orb_rho_g%pw, ener, work_v_gspace%pw)
          
-         IF (dft_control%psolver == 4) THEN
+         IF (dft_control%psolver .NE. 4) THEN
             ! Correct for  DDAP charges 
-            CALL cp_ddapc_apply_CD2(qs_env, &
-                                   orb_rho_g, &
-                                   ener, &
-                                   v_hartree_gspace=work_v_gspace, &
-                                   calculate_forces=.FALSE., &
-                                   Itype_of_density="SPIN",&
-                                   e_decpl=e_decpl)
-         ELSE
+         !   CALL cp_ddapc_apply_CD2(qs_env, &
+          !                         orb_rho_g, &
+          !                         ener, &
+          !                         v_hartree_gspace=work_v_gspace, &
+          !                         calculate_forces=.FALSE., &
+          !                         Itype_of_density="SPIN",&
+          !                         e_decpl=e_decpl)
+         !ELSE
              poisson_env%rebuild = .True.
              auxsolver = poisson_env%parameters%solver
              auxperiodic = poisson_env%parameters%periodic
              poisson_env%parameters%solver = dft_control%psolver
              poisson_env%parameters%periodic = (/0,0,0/)  ! non-periodic  
-             CALL pw_poisson_solve(poisson_env, orb_rho_g%pw, ener_, work_v_gspace_%pw)
-             e_decpl = ener_ - ener
+          !   CALL pw_poisson_solve(poisson_env, orb_rho_g%pw, ener_, work_v_gspace_%pw)
+           !  e_decpl = ener_ - ener
          ENDIF
          
-         energy%hartree = energy%hartree+e_decpl
+         !energy%hartree = energy%hartree+e_decpl
                 
       ENDIF
 
       
       ! now apply to SIC correction to each selected orbital
-      IF (dft_control%sic_scaling_a > 1.0e-5_dp .OR. dft_control%sic_scaling_b > 1.0e-5_dp) THEN
+      !IF (dft_control%sic_scaling_a > 1.0e-5_dp .OR. dft_control%sic_scaling_b > 1.0e-5_dp) THEN
          DO iorb = 1, Norb
             ! extract the proper orbital from the mo_coeff
             CALL get_mo_set(mo_set=mo_array(sic_orbital_list(1, iorb))%mo_set, mo_coeff=mo_coeff)
@@ -740,7 +740,7 @@ CONTAINS
 
             ENDIF
          ENDDO
-      ENDIF
+      !ENDIF
       ! recover the periodic PS
       IF (auxsolver .NE. 1000) THEN
          poisson_env%rebuild = .True.
