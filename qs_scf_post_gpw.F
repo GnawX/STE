@@ -257,7 +257,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'scf_post_calculation_gpw', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, homo, ispin, min_lumos, n_rep, &
+      INTEGER                                            :: handle, homo, homo_num(2), ispin, min_lumos, n_rep, &
                                                             nhomo, nlumo, nlumo_stm, nlumo_tddft, &
                                                             nlumos, nmo, output_unit, unit_nr
       INTEGER, DIMENSION(:, :, :), POINTER               :: marked_states
@@ -472,6 +472,7 @@ CONTAINS
             END IF
             DO ispin = 1, dft_control%nspins
                CALL get_mo_set(mo_set=mos(ispin)%mo_set, eigenvalues=mo_eigenvalues, homo=homo)
+               homo_num(ispin) = homo
                homo_lumo(ispin, 1) = mo_eigenvalues(homo)
             END DO
             has_homo = .TRUE.
@@ -606,7 +607,7 @@ CONTAINS
                   IF (p_loc_lumo .AND. nlumo .NE. -1) nlumos = MIN(nlumo, nlumos)
                   ! Prints the cube files of UNOCCUPIED ORBITALS
                   CALL qs_scf_post_unocc_cubes(input, dft_section, dft_control, logger, qs_env, &
-                                               unoccupied_orbs(ispin)%matrix, wf_g, wf_r, particles, nlumos, homo, ispin)
+                                               unoccupied_orbs(ispin)%matrix, wf_g, wf_r, particles, nlumos, homo_num(ispin), ispin)
                END IF
             END DO
 
