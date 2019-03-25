@@ -37,12 +37,13 @@ PROGRAM changeocc
 
      ALLOCATE(evals(nmo),occups(nmo))
 
+     READ (restart_unit) evals,occups
+     
      IF (lfomo < homo) THEN
          occups(homo)=0.0
          occups(lfomo)=1.0
      ENDIF
-
-     READ (restart_unit) evals,occups
+     
      WRITE(ounit) evals,occups
 
      DEALLOCATE(evals,occups)
