@@ -36,9 +36,11 @@ PROGRAM changeocc
      WRITE(ounit) nmo,homo,lfomo,nelectron
 
      ALLOCATE(evals(nmo),occups(nmo))
-     
-     occups(homo)=1.0
-     occups(homo+1:nmo)=0.0
+
+     IF (lfomo < homo) THEN
+         occups(homo)=0.0
+         occups(lfomo)=1.0
+     ENDIF
 
      READ (restart_unit) evals,occups
      WRITE(ounit) evals,occups
