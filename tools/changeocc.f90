@@ -1,4 +1,4 @@
-PROGRAM Restart2Ascii
+PROGRAM changeocc
   IMPLICIT NONE
   INTEGER, PARAMETER :: restart_unit=17,ounit=18
   INTEGER :: natom_read,nspin_read,nao_read,nset_max,nshell_max, &
@@ -9,7 +9,7 @@ PROGRAM Restart2Ascii
                       
 
   OPEN(UNIT=restart_unit,FILE="RESTART",FORM="UNFORMATTED")
-  OPEN(UNIT=ounit,FILE="RESTART.ascii",FORM="FORMATTED")
+  OPEN(UNIT=ounit,FILE="RESTART.occ",FORM="UNFORMATTED")
 
   READ (restart_unit) natom_read,nspin_read,nao_read,nset_max,nshell_max
   WRITE(ounit,*) natom_read,nspin_read,nao_read,nset_max,nshell_max
@@ -36,6 +36,9 @@ PROGRAM Restart2Ascii
      WRITE(ounit,*) nmo,homo,lfomo,nelectron
 
      ALLOCATE(evals(nmo),occups(nmo))
+     
+     occups(homo)=1.0
+     occups(homo+1:nmo)=0.0
 
      READ (restart_unit) evals,occups
      WRITE(ounit,*) evals,occups
@@ -50,3 +53,5 @@ PROGRAM Restart2Ascii
   ENDDO
 
   DEALLOCATE(vecbuffer_read)
+  
+  END
