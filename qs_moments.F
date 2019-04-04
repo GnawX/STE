@@ -1342,6 +1342,210 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE qs_moment_berry_phase
+   
+   
+!***********************************************************************************************
+! Transition dipole moment between HOMO and LUMO
+! with the Berry phase method
+!***********************************************************************************************
+   SUBROUTINE qs_tdm_berry_phase(qs_env, magnetic, nmoments, reference, ref_point, unit_number)
+
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      LOGICAL, INTENT(IN)                                :: magnetic
+      INTEGER, INTENT(IN)                                :: nmoments, reference
+      REAL(dp), DIMENSION(:), POINTER                    :: ref_point
+      INTEGER, INTENT(IN)                                :: unit_number
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_moment_berry_phase', &
+         routineP = moduleN//':'//routineN
+
+      CHARACTER(LEN=8), ALLOCATABLE, DIMENSION(:)        :: rlab
+      CHARACTER(LEN=default_string_length)               :: description
+      COMPLEX(dp)                                        :: xphase(3), zdet, zdeta, zi(3), &
+                                                            zij(3, 3), zijk(3, 3, 3), &
+                                                            zijkl(3, 3, 3, 3), zphase(3), zz
+      INTEGER                                            :: handle, i, ia, idim, ikind, ispin, ix, &
+                                                            iy, iz, j, k, l, nao, nm, nmo, nmom, &
+                                                            nmotot, tmp_dim
+      LOGICAL                                            :: floating, ghost, uniform
+      REAL(dp)                                           :: charge, ci(3), cij(3, 3), dd, occ, trace
+      REAL(dp), ALLOCATABLE, DIMENSION(:)                :: mmom
+      REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: rmom
+      REAL(dp), DIMENSION(3)                             :: kvec, qq, rcc, ria
+      TYPE(atomic_kind_type), POINTER                    :: atomic_kind
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_cfm_p_type), DIMENSION(:), POINTER         :: eigrmat
+      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mos_new, opvec
+      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: op_fm_set
+      TYPE(cp_fm_struct_type), POINTER                   :: tmp_fm_struct
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_result_type), POINTER                      :: results
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, rho_ao
+      TYPE(dbcsr_type), POINTER                          :: cosmat, sinmat
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(distribution_1d_type), POINTER                :: local_particles
+      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(qs_rho_type), POINTER                         :: rho
+      TYPE(rt_prop_type), POINTER                        :: rtp
+
+      CPASSERT(ASSOCIATED(qs_env))
+
+      IF (ASSOCIATED(qs_env%ls_scf_env)) THEN
+         IF (unit_number > 0) WRITE (unit_number, *) "Periodic moment calculation not implemented in linear scaling code"
+         RETURN
+      ENDIF
+
+      CALL timeset(routineN, handle)
+
+      ! restrict maximum moment available
+      nmom = MIN(nmoments, 2)
+
+      nm = (6+11*nmom+6*nmom**2+nmom**3)/6-1
+      ! rmom(:,1)=electronic
+      ! rmom(:,2)=nuclear
+      ! rmom(:,1)=total
+      ALLOCATE (rmom(nm+1, 3))
+      ALLOCATE (rlab(nm+1))
+      rmom = 0.0_dp
+      rlab = ""
+ 
+
+      NULLIFY (dft_control, rho, cell, particle_set, results, para_env, &
+               local_particles, matrix_s, mos, rho_ao)
+
+      CALL get_qs_env(qs_env, &
+                      dft_control=dft_control, &
+                      rho=rho, &
+                      cell=cell, &
+                      results=results, &
+                      particle_set=particle_set, &
+                      qs_kind_set=qs_kind_set, &
+                      para_env=para_env, &
+                      local_particles=local_particles, &
+                      matrix_s=matrix_s, &
+                      mos=mos)
+
+      CALL qs_rho_get(rho, rho_ao=rho_ao)
+
+      NULLIFY (cosmat, sinmat)
+      ALLOCATE (cosmat, sinmat)
+      CALL dbcsr_copy(cosmat, matrix_s(1)%matrix, 'COS MOM')
+      CALL dbcsr_copy(sinmat, matrix_s(1)%matrix, 'SIN MOM')
+      CALL dbcsr_set(cosmat, 0.0_dp)
+      CALL dbcsr_set(sinmat, 0.0_dp)
+
+      ALLOCATE (op_fm_set(2, dft_control%nspins))
+      ALLOCATE (opvec(dft_control%nspins))
+      ALLOCATE (eigrmat(dft_control%nspins))
+      nmotot = 0
+      DO ispin = 1, dft_control%nspins
+         NULLIFY (tmp_fm_struct, mo_coeff)
+         CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff, nao=nao, nmo=nmo)
+         nmotot = nmotot+nmo
+         CALL cp_fm_create(opvec(ispin)%matrix, mo_coeff%matrix_struct)
+         CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nmo, &
+                                  ncol_global=nmo, para_env=para_env, context=mo_coeff%matrix_struct%context)
+         DO i = 1, SIZE(op_fm_set, 1)
+            NULLIFY (op_fm_set(i, ispin)%matrix)
+            CALL cp_fm_create(op_fm_set(i, ispin)%matrix, tmp_fm_struct)
+         END DO
+         CALL cp_cfm_create(eigrmat(ispin)%matrix, op_fm_set(1, ispin)%matrix%matrix_struct)
+         CALL cp_fm_struct_release(tmp_fm_struct)
+      END DO
+
+
+
+      ! label
+      DO l = 1, nm
+         ix = indco(1, l+1)
+         iy = indco(2, l+1)
+         iz = indco(3, l+1)
+         CALL set_label(rlab(l+1), ix, iy, iz)
+      END DO
+
+
+      ! electronic contribution
+
+
+      ! charge
+      trace = 0.0_dp
+      DO ispin = 1, dft_control%nspins
+         CALL dbcsr_trace(rho_ao(ispin)%matrix, matrix_s(1)%matrix, trace)
+         rmom(1, 1) = rmom(1, 1)+trace
+      END DO
+
+      zi = 0._dp
+      zij = 0._dp
+      zijk = 0._dp
+      zijkl = 0._dp
+
+
+            ! Dipole
+            DO i = 1, 3
+               kvec(:) = twopi*cell%h_inv(i, :)
+               CALL build_berry_moment_matrix(qs_env, cosmat, sinmat, kvec)
+               IF (qs_env%run_rtp) THEN
+                  CALL get_qs_env(qs_env, rtp=rtp)
+                  CALL get_rtp(rtp, mos_new=mos_new)
+                  CALL op_orbbas_rtp(cosmat, sinmat, mos, op_fm_set, mos_new)
+               ELSE
+                  CALL op_orbbas(cosmat, sinmat, mos, op_fm_set, opvec)
+               END IF
+               zdet = CMPLX(1._dp, 0._dp, dp)
+               DO ispin = 1, dft_control%nspins
+                  CALL cp_cfm_get_info(eigrmat(ispin)%matrix, ncol_local=tmp_dim)
+                  DO idim = 1, tmp_dim
+                     eigrmat(ispin)%matrix%local_data(:, idim) = &
+                        CMPLX(op_fm_set(1, ispin)%matrix%local_data(:, idim), &
+                              -op_fm_set(2, ispin)%matrix%local_data(:, idim), dp)
+                  END DO
+                  CALL cp_cfm_lu_decompose(eigrmat(ispin)%matrix, zdeta)
+                  zdet = zdet*zdeta
+                  IF (dft_control%nspins == 1) THEN
+                     zdet = zdet*zdeta
+                  ENDIF
+               END DO
+               zi(i) = zdet
+            END DO
+
+            ! Dipole (apply periodic (2 Pi) boundary conditions)
+            ci = AIMAG(LOG(zi))
+            DO i = 1, 3
+               IF (ci(i) > pi) ci(i) = ci(i)-twopi
+               IF (ci(i) < -pi) ci(i) = ci(i)+twopi
+            END DO
+            rmom(2:4, 1) = MATMUL(cell%hmat, ci)/twopi
+  
+
+      rmom(:, 3) = rmom(:, 1)+rmom(:, 2)
+      description = "[DIPOLE]"
+      CALL cp_results_erase(results=results, description=description)
+      CALL put_results(results=results, description=description, &
+                       values=rmom(2:4, 3))
+
+      DEALLOCATE (rmom)
+      DEALLOCATE (rlab)
+
+      CALL dbcsr_deallocate_matrix(cosmat)
+      CALL dbcsr_deallocate_matrix(sinmat)
+
+      DO ispin = 1, dft_control%nspins
+         CALL cp_fm_release(opvec(ispin)%matrix)
+         CALL cp_cfm_release(eigrmat(ispin)%matrix)
+         DO i = 1, SIZE(op_fm_set, 1)
+            CALL cp_fm_release(op_fm_set(i, ispin)%matrix)
+         END DO
+      END DO
+      DEALLOCATE (op_fm_set)
+      DEALLOCATE (opvec)
+      DEALLOCATE (eigrmat)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE qs_tdm_berry_phase   
 
 ! **************************************************************************************************
 !> \brief ...
