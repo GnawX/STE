@@ -2512,6 +2512,16 @@ CONTAINS
                           default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
+      
+      CALL keyword_create(keyword=keyword, &
+                          name="TDM", &
+                          description="Use Berry phase formula to calculated the transition dipole moment HOMO->LUMO", &
+                          usage="TDM {logical}", &
+                          repeats=.FALSE., &
+                          n_var=1, &
+                          default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
 
       CALL keyword_create(keyword=keyword, name="REFERENCE", &
                           variants=s2a("REF"), &
