@@ -1399,7 +1399,7 @@ CONTAINS
 
       CHARACTER(LEN=default_path_length)                 :: filename
       INTEGER                                            :: handle, maxmom, reference, unit_nr
-      LOGICAL                                            :: do_kpoints, magnetic, periodic
+      LOGICAL                                            :: do_kpoints, magnetic, periodic,transition_dipole
       REAL(KIND=dp), DIMENSION(:), POINTER               :: ref_point
       TYPE(section_vals_type), POINTER                   :: print_key
 
