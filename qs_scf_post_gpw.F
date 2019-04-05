@@ -179,7 +179,7 @@ MODULE qs_scf_post_gpw
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_p_type
    USE qs_moments,                      ONLY: qs_moment_berry_phase,&
-                                              qs_moment_locop
+                                              qs_moment_locop, qs_tdm_berry_phase
    USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
                                               get_neighbor_list_set_p,&
                                               neighbor_list_iterate,&
@@ -1414,6 +1414,8 @@ CONTAINS
                                    keyword_name="DFT%PRINT%MOMENTS%MAX_MOMENT")
          periodic = section_get_lval(section_vals=input, &
                                      keyword_name="DFT%PRINT%MOMENTS%PERIODIC")
+         transition_dipole = section_get_lval(section_vals=input, &
+                                     keyword_name="DFT%PRINT%MOMENTS%TDM")
          reference = section_get_ival(section_vals=input, &
                                       keyword_name="DFT%PRINT%MOMENTS%REFERENCE")
          magnetic = section_get_lval(section_vals=input, &
@@ -1440,7 +1442,9 @@ CONTAINS
          IF (do_kpoints) THEN
             CPWARN("Moments not implemented for k-point calculations!")
          ELSE
-            IF (periodic) THEN
+            IF (transition_dipole) THEN
+               CALL qs_tdm_berry_phase(qs_env,unit_nr)
+            ELSE IF (periodic) THEN
                CALL qs_moment_berry_phase(qs_env, magnetic, maxmom, reference, ref_point, unit_nr)
             ELSE
                CALL qs_moment_locop(qs_env, magnetic, maxmom, reference, ref_point, unit_nr)
