@@ -1346,20 +1346,17 @@ CONTAINS
    
 !***********************************************************************************************
 ! Transition dipole moment between HOMO and LUMO
-! with the Berry phase method
+! with Berry phase method
 !***********************************************************************************************
-   SUBROUTINE qs_tdm_berry_phase(qs_env, magnetic, nmoments, reference, ref_point, unit_number)
+   SUBROUTINE qs_tdm_berry_phase(qs_env, unit_number)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      LOGICAL, INTENT(IN)                                :: magnetic
-      INTEGER, INTENT(IN)                                :: nmoments, reference
-      REAL(dp), DIMENSION(:), POINTER                    :: ref_point
       INTEGER, INTENT(IN)                                :: unit_number
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_moment_berry_phase', &
          routineP = moduleN//':'//routineN
 
-      CHARACTER(LEN=8), ALLOCATABLE, DIMENSION(:)        :: rlab
+      CHARACTER(LEN=8)                                   :: rlab
       CHARACTER(LEN=default_string_length)               :: description
       COMPLEX(dp)                                        :: xphase(3), zdet, zdeta, zi(3), &
                                                             zij(3, 3), zijk(3, 3, 3), &
@@ -1370,7 +1367,7 @@ CONTAINS
       LOGICAL                                            :: floating, ghost, uniform
       REAL(dp)                                           :: charge, ci(3), cij(3, 3), dd, occ, trace
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: mmom
-      REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: rmom
+      REAL(dp)                                           :: rmom(3)
       REAL(dp), DIMENSION(3)                             :: kvec, qq, rcc, ria
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
       TYPE(cell_type), POINTER                           :: cell
@@ -1400,15 +1397,6 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      ! restrict maximum moment available
-      nmom = MIN(nmoments, 2)
-
-      nm = (6+11*nmom+6*nmom**2+nmom**3)/6-1
-      ! rmom(:,1)=electronic
-      ! rmom(:,2)=nuclear
-      ! rmom(:,1)=total
-      ALLOCATE (rmom(nm+1, 3))
-      ALLOCATE (rlab(nm+1))
       rmom = 0.0_dp
       rlab = ""
  
@@ -1459,12 +1447,10 @@ CONTAINS
 
 
       ! label
-      DO l = 1, nm
-         ix = indco(1, l+1)
-         iy = indco(2, l+1)
-         iz = indco(3, l+1)
-         CALL set_label(rlab(l+1), ix, iy, iz)
-      END DO
+         ix = indco(1, 2)
+         iy = indco(2, 2)
+         iz = indco(3, 2)
+         CALL set_label(rlab, ix, iy, iz)
 
 
       ! electronic contribution
