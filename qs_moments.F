@@ -613,7 +613,7 @@ CONTAINS
       IF (PRESENT(sab_orb_external)) sab_orb => sab_orb_external
 
       CALL dbcsr_set(sinmat, 0.0_dp)
-      CALL dbcsr_set(cosmat, 0.0_dp)
+      CALL dbcsr_set(gg, 0.0_dp)
 
       CALL get_qs_kind_set(qs_kind_set=qs_kind_set, maxco=ldwork, basis_type=basis_type)
       ldab = ldwork
@@ -1358,16 +1358,18 @@ CONTAINS
 
       CHARACTER(LEN=8)                                   :: rlab
       CHARACTER(LEN=default_string_length)               :: description
-      COMPLEX(dp)                                        :: xphase(3), zdet, zdeta, zi(3), &
+      COMPLEX(dp)                                        :: xphase(3), zdet, zdeta, &
                                                             zij(3, 3), zijk(3, 3, 3), &
                                                             zijkl(3, 3, 3, 3), zphase(3), zz
+      COMPLEX(dp), ALLOCATABLE                           :: zi(:,:)                                                      
       INTEGER                                            :: handle, i, ia, idim, ikind, ispin, ix, &
                                                             iy, iz, j, k, l, nao, nm, nmo, nmom, &
                                                             nmotot, tmp_dim
+      INTEGER, ALLOCATALBE                               :: homo(:), lfomo(:)                                                      
       LOGICAL                                            :: floating, ghost, uniform
-      REAL(dp)                                           :: charge, ci(3), cij(3, 3), dd, occ, trace
+      REAL(dp)                                           :: charge, cij(3, 3), dd, occ, trace
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: mmom
-      REAL(dp)                                           :: rmom(3)
+      REAL(dp), ALLOCATALBE                              :: rmom(:,:), ci(:,:)
       REAL(dp), DIMENSION(3)                             :: kvec, qq, rcc, ria
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
       TYPE(cell_type), POINTER                           :: cell
@@ -1416,7 +1418,6 @@ CONTAINS
                       matrix_s=matrix_s, &
                       mos=mos)
 
-      CALL qs_rho_get(rho, rho_ao=rho_ao)
 
       NULLIFY (cosmat, sinmat)
       ALLOCATE (cosmat, sinmat)
@@ -1428,11 +1429,16 @@ CONTAINS
       ALLOCATE (op_fm_set(2, dft_control%nspins))
       ALLOCATE (opvec(dft_control%nspins))
       ALLOCATE (eigrmat(dft_control%nspins))
-      nmotot = 0
+      ALLOCATE (zi(3,dft_control%nspins))
+      ALLOCATE (homo(dft_control%nspins))
+      ALLOCATE (lfomo(dft_control%nspins))
+      ALLOCATE (ci(3,dft_control%nspins))
+      ALLOCATE (rmom(3,dft_control%nspins))
+      
       DO ispin = 1, dft_control%nspins
          NULLIFY (tmp_fm_struct, mo_coeff)
-         CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff, nao=nao, nmo=nmo)
-         nmotot = nmotot+nmo
+         CALL get_mo_set(mo_set=mos(ispin)%mo_set, homo(ispin)=homo, &
+                         lfomo(ispin)=lfomo, mo_coeff=mo_coeff, nao=nao, nmo=nmo)
          CALL cp_fm_create(opvec(ispin)%matrix, mo_coeff%matrix_struct)
          CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nmo, &
                                   ncol_global=nmo, para_env=para_env, context=mo_coeff%matrix_struct%context)
@@ -1457,11 +1463,6 @@ CONTAINS
 
 
       ! charge
-      trace = 0.0_dp
-      DO ispin = 1, dft_control%nspins
-         CALL dbcsr_trace(rho_ao(ispin)%matrix, matrix_s(1)%matrix, trace)
-         rmom(1, 1) = rmom(1, 1)+trace
-      END DO
 
       zi = 0._dp
       zij = 0._dp
@@ -1469,51 +1470,37 @@ CONTAINS
       zijkl = 0._dp
 
 
-            ! Dipole
-            DO i = 1, 3
-               kvec(:) = twopi*cell%h_inv(i, :)
-               CALL build_berry_moment_matrix(qs_env, cosmat, sinmat, kvec)
-               IF (qs_env%run_rtp) THEN
-                  CALL get_qs_env(qs_env, rtp=rtp)
-                  CALL get_rtp(rtp, mos_new=mos_new)
-                  CALL op_orbbas_rtp(cosmat, sinmat, mos, op_fm_set, mos_new)
-               ELSE
-                  CALL op_orbbas(cosmat, sinmat, mos, op_fm_set, opvec)
-               END IF
-               zdet = CMPLX(1._dp, 0._dp, dp)
-               DO ispin = 1, dft_control%nspins
-                  CALL cp_cfm_get_info(eigrmat(ispin)%matrix, ncol_local=tmp_dim)
-                  DO idim = 1, tmp_dim
-                     eigrmat(ispin)%matrix%local_data(:, idim) = &
-                        CMPLX(op_fm_set(1, ispin)%matrix%local_data(:, idim), &
-                              -op_fm_set(2, ispin)%matrix%local_data(:, idim), dp)
-                  END DO
-                  CALL cp_cfm_lu_decompose(eigrmat(ispin)%matrix, zdeta)
-                  zdet = zdet*zdeta
-                  IF (dft_control%nspins == 1) THEN
-                     zdet = zdet*zdeta
-                  ENDIF
-               END DO
-               zi(i) = zdet
+      ! Dipole
+      DO i = 1, 3
+         kvec(:) = twopi*cell%h_inv(i, :)
+         CALL build_berry_moment_matrix(qs_env, cosmat, sinmat, kvec)
+         CALL op_orbbas(cosmat, sinmat, mos, op_fm_set, opvec)
+         DO ispin = 1, dft_control%nspins
+            CALL cp_cfm_get_info(eigrmat(ispin)%matrix, ncol_local=tmp_dim)
+            DO idim = 1, tmp_dim
+               eigrmat(ispin)%matrix%local_data(:, idim) = &
+                  CMPLX(op_fm_set(1, ispin)%matrix%local_data(:, idim), &
+                        op_fm_set(2, ispin)%matrix%local_data(:, idim), dp)
             END DO
-
-            ! Dipole (apply periodic (2 Pi) boundary conditions)
-            ci = AIMAG(LOG(zi))
-            DO i = 1, 3
-               IF (ci(i) > pi) ci(i) = ci(i)-twopi
-               IF (ci(i) < -pi) ci(i) = ci(i)+twopi
-            END DO
-            rmom(2:4, 1) = MATMUL(cell%hmat, ci)/twopi
+            zi(i,ispin) = eigrmat(ispin)%matrix%local_data(homo(ispin), lfomo(ispin))
+         END DO
+      ENDDO
+      ! Dipole (apply periodic (2 Pi) boundary conditions)
+      DO ispin = 1, dft_control%nspins
+         ci(:,ispin) = AIMAG(LOG(zi(:,ispin)))
+         DO i = 1, 3
+            IF (ci(i, ispin) > pi) ci(i,ispin) = ci(i,ispin)-twopi
+            IF (ci(i, ispin) < -pi) ci(i,ispin) = ci(i,ispin)+twopi
+         END DO
+         rmom(:,ispin)= MATMUL(cell%hmat, ci)/twopi
+      ENDDO
   
 
-      rmom(:, 3) = rmom(:, 1)+rmom(:, 2)
-      description = "[DIPOLE]"
+      description = "[TranDIPOLE]"
       CALL cp_results_erase(results=results, description=description)
       CALL put_results(results=results, description=description, &
-                       values=rmom(2:4, 3))
+                       values=rmom)
 
-      DEALLOCATE (rmom)
-      DEALLOCATE (rlab)
 
       CALL dbcsr_deallocate_matrix(cosmat)
       CALL dbcsr_deallocate_matrix(sinmat)
@@ -1528,6 +1515,7 @@ CONTAINS
       DEALLOCATE (op_fm_set)
       DEALLOCATE (opvec)
       DEALLOCATE (eigrmat)
+      DEALLOCATE (ci,rmom,homo,lfomo,zi)
 
       CALL timestop(handle)
 
