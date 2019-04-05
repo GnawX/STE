@@ -613,7 +613,7 @@ CONTAINS
       IF (PRESENT(sab_orb_external)) sab_orb => sab_orb_external
 
       CALL dbcsr_set(sinmat, 0.0_dp)
-      CALL dbcsr_set(gg, 0.0_dp)
+      CALL dbcsr_set(cosmat, 0.0_dp)
 
       CALL get_qs_kind_set(qs_kind_set=qs_kind_set, maxco=ldwork, basis_type=basis_type)
       ldab = ldwork
@@ -1365,11 +1365,11 @@ CONTAINS
       INTEGER                                            :: handle, i, ia, idim, ikind, ispin, ix, &
                                                             iy, iz, j, k, l, nao, nm, nmo, nmom, &
                                                             nmotot, tmp_dim
-      INTEGER, ALLOCATALBE                               :: homo(:), lfomo(:)                                                      
+      INTEGER, ALLOCATABLE                               :: homo(:), lfomo(:)                                                      
       LOGICAL                                            :: floating, ghost, uniform
       REAL(dp)                                           :: charge, cij(3, 3), dd, occ, trace
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: mmom
-      REAL(dp), ALLOCATALBE                              :: rmom(:,:), ci(:,:)
+      REAL(dp), ALLOCATABLE                              :: rmom(:,:), ci(:,:)
       REAL(dp), DIMENSION(3)                             :: kvec, qq, rcc, ria
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
       TYPE(cell_type), POINTER                           :: cell
@@ -1437,8 +1437,8 @@ CONTAINS
       
       DO ispin = 1, dft_control%nspins
          NULLIFY (tmp_fm_struct, mo_coeff)
-         CALL get_mo_set(mo_set=mos(ispin)%mo_set, homo(ispin)=homo, &
-                         lfomo(ispin)=lfomo, mo_coeff=mo_coeff, nao=nao, nmo=nmo)
+         CALL get_mo_set(mo_set=mos(ispin)%mo_set, homo=homo(ispin), &
+                         lfomo=lfomo(ispin), mo_coeff=mo_coeff, nao=nao, nmo=nmo)
          CALL cp_fm_create(opvec(ispin)%matrix, mo_coeff%matrix_struct)
          CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nmo, &
                                   ncol_global=nmo, para_env=para_env, context=mo_coeff%matrix_struct%context)
@@ -1496,7 +1496,7 @@ CONTAINS
             IF (ci(i, ispin) > pi) ci(i,ispin) = ci(i,ispin)-twopi
             IF (ci(i, ispin) < -pi) ci(i,ispin) = ci(i,ispin)+twopi
          END DO
-         rmom(:,ispin)= MATMUL(cell%hmat, ci)/twopi
+         rmom(:,ispin)= MATMUL(cell%hmat, ci(:,ispin))/twopi
       ENDDO
   
 
@@ -1505,7 +1505,7 @@ CONTAINS
       CALL put_results(results=results, description=description, &
                        values=rmom)
                        
-      CALL print_moments(unit_number,  rmom, rlab, cell, periodic=.TRUE.)
+      CALL print_tdm(unit_number,  rmom, rlab, cell, periodic=.TRUE.)
 
       CALL dbcsr_deallocate_matrix(cosmat)
       CALL dbcsr_deallocate_matrix(sinmat)
@@ -1939,14 +1939,13 @@ CONTAINS
       REAL(dp)                                           :: dd
 
       IF (unit_number > 0) THEN
-            CASE (1)
                IF (periodic) THEN
                   WRITE (unit_number, "(T3,A)") "Dipole vectors are based on the periodic (Berry phase) operator."
                   WRITE (unit_number, "(T3,A)") "They are defined modulo integer multiples of the cell matrix [au]."
                   WRITE (unit_number, "(T3,A,3(F14.8,1X),A)") "[X] [", cell%hmat(1, :), "] [i]"
                   WRITE (unit_number, "(T3,A,3(F14.8,1X),A)") "[Y]=[", cell%hmat(2, :), "]*[j]"
                   WRITE (unit_number, "(T3,A,3(F14.8,1X),A)") "[Z] [", cell%hmat(3, :), "] [k]"
-               
+               ENDIF
                WRITE (unit_number, "(T3,A)") "Transition dipole moment [au]"
                nspins = SIZE(rmom,2)
                IF (nspins == 1) THEN
