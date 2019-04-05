@@ -94,7 +94,7 @@ MODULE qs_moments
    ! Public subroutines
    PUBLIC :: build_berry_moment_matrix, build_local_moment_matrix
    PUBLIC :: build_berry_kpoint_matrix
-   PUBLIC :: qs_moment_berry_phase, qs_moment_locop
+   PUBLIC :: qs_moment_berry_phase, qs_moment_locop, qs_tdm_berry_phase
 
 CONTAINS
 
@@ -1356,7 +1356,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_moment_berry_phase', &
          routineP = moduleN//':'//routineN
 
-      CHARACTER(LEN=8)                                   :: rlab
+      CHARACTER(LEN=8)                                   :: rlab(3)
       CHARACTER(LEN=default_string_length)               :: description
       COMPLEX(dp)                                        :: xphase(3), zdet, zdeta, &
                                                             zij(3, 3), zijk(3, 3, 3), &
@@ -1451,12 +1451,16 @@ CONTAINS
       END DO
 
 
-
       ! label
-         ix = indco(1, 2)
-         iy = indco(2, 2)
-         iz = indco(3, 2)
-         CALL set_label(rlab, ix, iy, iz)
+      
+      DO l = 1, 3
+         ix = indco(1, l+1)
+         iy = indco(2, l+1)
+         iz = indco(3, l+1)
+         CALL set_label(rlab(l), ix, iy, iz)
+      END DO
+
+
 
 
       ! electronic contribution
@@ -1500,7 +1504,8 @@ CONTAINS
       CALL cp_results_erase(results=results, description=description)
       CALL put_results(results=results, description=description, &
                        values=rmom)
-
+                       
+      CALL print_moments(unit_number,  rmom, rlab, cell, periodic=.TRUE.)
 
       CALL dbcsr_deallocate_matrix(cosmat)
       CALL dbcsr_deallocate_matrix(sinmat)
@@ -1921,5 +1926,40 @@ CONTAINS
       END IF
 
    END SUBROUTINE print_moments
+   
+   
+   SUBROUTINE print_tdm(unit_number, rmom, rlab, cell, periodic)
+      INTEGER, INTENT(IN)                                :: unit_number
+      REAL(dp), DIMENSION(:, :), INTENT(IN)              :: rmom
+      CHARACTER(LEN=8)                                   :: rlab(3)
+      TYPE(cell_type), POINTER                           :: cell
+      LOGICAL                                            :: periodic
+
+      INTEGER                                            :: i, i0, i1, j, l, ispin, nspins
+      REAL(dp)                                           :: dd
+
+      IF (unit_number > 0) THEN
+            CASE (1)
+               IF (periodic) THEN
+                  WRITE (unit_number, "(T3,A)") "Dipole vectors are based on the periodic (Berry phase) operator."
+                  WRITE (unit_number, "(T3,A)") "They are defined modulo integer multiples of the cell matrix [au]."
+                  WRITE (unit_number, "(T3,A,3(F14.8,1X),A)") "[X] [", cell%hmat(1, :), "] [i]"
+                  WRITE (unit_number, "(T3,A,3(F14.8,1X),A)") "[Y]=[", cell%hmat(2, :), "]*[j]"
+                  WRITE (unit_number, "(T3,A,3(F14.8,1X),A)") "[Z] [", cell%hmat(3, :), "] [k]"
+               
+               WRITE (unit_number, "(T3,A)") "Transition dipole moment [au]"
+               nspins = SIZE(rmom,2)
+               IF (nspins == 1) THEN
+                  WRITE (unit_number, "(T5,3(A,A,F14.8,1X))") &
+                      (TRIM(rlab(i)), "=", rmom(i, 1), i=1, 3)
+               ELSE
+                   DO ispin = 1,nspins
+                      WRITE (unit_number, "(T5,3(A,A,F14.8,1X))") &
+                      (TRIM(rlab(i)), "=", rmom(i, ispin), i=1, 3)
+                   ENDDO
+               ENDIF
+      END IF
+
+   END SUBROUTINE print_tdm
 
 END MODULE qs_moments
