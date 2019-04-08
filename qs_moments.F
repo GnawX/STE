@@ -1943,7 +1943,7 @@ CONTAINS
                   WRITE (unit_number, "(T3,A)") "Dipole vectors are based on the periodic (Berry phase) operator."
                   WRITE (unit_number, "(T3,A)") "They are defined modulo integer multiples of the cell matrix [au]."
                   WRITE (unit_number, "(T3,A,3(F14.8,1X),A)") "[X] [", cell%hmat(1, :), "] [i]"
-                  WRITE (unit_number, "(T3,A,3(F14.8,1X),A)") "[Y]=[", cell%hmat(2, :), "]*[j]"
+                  WRITE (unit_number, "(T3,A,3(F14.8,1X),A)") "[Y]=[", cell%hmat(2, :), "] [j]"
                   WRITE (unit_number, "(T3,A,3(F14.8,1X),A)") "[Z] [", cell%hmat(3, :), "] [k]"
                ENDIF
                WRITE (unit_number, "(T3,A)") "Transition dipole moment [au]"
