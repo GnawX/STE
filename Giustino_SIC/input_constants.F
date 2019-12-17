@@ -538,7 +538,8 @@ MODULE input_constants
                                                sic_mauri_us = 1, &
                                                sic_mauri_spz = 2, &
                                                sic_ad = 3, &
-                                               sic_eo = 4
+                                               sic_eo = 4, &
+                                               sic_mauri_giustino = 5
    INTEGER, PARAMETER, PUBLIC               :: sic_list_all = 1, &
                                                sic_list_unpaired = 2
    INTEGER, PARAMETER, PUBLIC               :: tddfpt_singlet = 0, &
