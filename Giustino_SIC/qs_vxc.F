@@ -20,6 +20,7 @@ MODULE qs_vxc
                                               sic_eo,&
                                               sic_mauri_spz,&
                                               sic_mauri_us,&
+                                              sic_mauri_giustino,&
                                               sic_none,&
                                               xc_none,&
                                               xc_vdw_fun_nonloc
@@ -202,6 +203,10 @@ CONTAINS
             CPASSERT(.NOT. tau_r_valid)
          CASE (sic_mauri_us)
             my_scaling = 1.0_dp-dft_control%sic_scaling_b
+            ! no idea yet what to do here in that case
+            CPASSERT(.NOT. tau_r_valid)
+         CASE (sic_mauri_giustino)
+            my_scaling = 1.0_dp-dft_control%sic_scaling_b*0.50_dp
             ! no idea yet what to do here in that case
             CPASSERT(.NOT. tau_r_valid)
          CASE (sic_eo)
@@ -548,7 +553,87 @@ CONTAINS
             ENDIF
 
          ENDIF
+         
+         ! The Sio-Giustino scheme  
+         ! E(rho_alpha,rho_beta)-b/2*(E(rho_alpha,rho_beta) + E(rho_beta-m,rho_beta) -2*E(rho_beta,rho_beta))
+         IF (dft_control%sic_method_id .EQ. sic_mauri_giustino .AND. .NOT. sic_scaling_b_zero) THEN
+        
+            rho_r(1)%pw => rho_struct_r(2)%pw
+            rho_r(2)%pw => rho_struct_r(2)%pw
+            
+            
+            IF (rho_g_valid) THEN
+               rho_g(1)%pw => rho_struct_g(2)%pw
+               rho_g(2)%pw => rho_struct_g(2)%pw
+            ENDIF
 
+            IF (my_just_energy) THEN
+               exc_dd = xc_exc_calc(rho_r=rho_r, tau=tau, &
+                                   rho_g=rho_g, xc_section=xc_section, &
+                                   pw_pool=xc_pw_pool)
+            ELSE
+               ! virial untested
+               CPASSERT(.NOT. compute_virial)
+               CALL xc_vxc_pw_create1(vxc_rho=my_vxc_rho, vxc_tau=my_vxc_tau, rho_r=rho_r, &
+                                      rho_g=rho_g, tau=tau, exc=exc_dd, &
+                                      xc_section=xc_section, &
+                                      pw_pool=xc_pw_pool, &
+                                      compute_virial=.FALSE., &
+                                      virial_xc=virial_xc_tmp)
+            END IF
+            
+            ! and take care of the potential
+            IF (.NOT. my_just_energy) THEN
+               ! both go to minority spin
+               vxc_rho(2)%pw%cr3d = vxc_rho(2)%pw%cr3d+ &
+                                    2.0_dp*dft_control%sic_scaling_b*my_vxc_rho(1)%pw%cr3d
+               CALL pw_release(my_vxc_rho(1)%pw)
+               CALL pw_release(my_vxc_rho(2)%pw)
+               !DEALLOCATE (my_vxc_rho)
+            ENDIF
+            
+            ALLOCATE (rho_m_rspace(2), rho_m_gspace(2))
+            CALL pw_pool_create_pw(xc_pw_pool, rho_m_gspace(1)%pw, &
+                                   use_data=COMPLEXDATA1D, &
+                                   in_space=RECIPROCALSPACE)
+            CALL pw_pool_create_pw(xc_pw_pool, rho_m_rspace(1)%pw, &
+                                   use_data=REALDATA3D, &
+                                   in_space=REALSPACE)
+            CALL pw_copy(rho_struct_r(1)%pw, rho_m_rspace(1)%pw)
+            CALL pw_axpy(rho_struct_r(2)%pw, rho_m_rspace(1)%pw, alpha=-1._dp)
+            CALL pw_copy(rho_struct_g(1)%pw, rho_m_gspace(1)%pw)
+            CALL pw_axpy(rho_struct_g(2)%pw, rho_m_gspace(1)%pw, alpha=-1._dp)
+            
+            CALL pw_axpy(rho_m_rspace(1)%pw, rho_r(1)%pw, alpha=-1._dp)
+            CALL pw_axpy(rho_m_gspace(1)%pw, rho_g(1)%pw, alpha=-1._dp)
+            
+            IF (my_just_energy) THEN
+               exc_dm = xc_exc_calc(rho_r=rho_r, tau=tau, &
+                                   rho_g=rho_g, xc_section=xc_section, &
+                                   pw_pool=xc_pw_pool)
+            ELSE
+               ! virial untested
+               CPASSERT(.NOT. compute_virial)
+               CALL xc_vxc_pw_create1(vxc_rho=my_vxc_rho, vxc_tau=my_vxc_tau, rho_r=rho_r, &
+                                      rho_g=rho_g, tau=tau, exc=exc_dm, &
+                                      xc_section=xc_section, &
+                                      pw_pool=xc_pw_pool, &
+                                      compute_virial=.FALSE., &
+                                      virial_xc=virial_xc_tmp)
+            END IF
+            
+            IF (.NOT. my_just_energy) THEN
+               vxc_rho(1)%pw%cr3d = vxc_rho(1)%pw%cr3d+dft_control%sic_scaling_b* &
+                                    my_vxc_rho(1)%pw%cr3d/2.0_dp
+               vxc_rho(2)%pw%cr3d = vxc_rho(2)%pw%cr3d-dft_control%sic_scaling_b* &
+                                    my_vxc_rho(1)%pw%cr3d - dft_control%sic_scaling_b*my_vxc_rho(2)%pw%cr3d/2.0_dp
+               CALL pw_release(my_vxc_rho(1)%pw)
+               CALL pw_release(my_vxc_rho(2)%pw)
+               DEALLOCATE (my_vxc_rho)
+            ENDIF
+            
+            exc = exc+dft_control%sic_scaling_b*exc_dd - dft_control%sic_scaling_b*exc_dm/2.0_dp
+            
          !
          ! cleanups
          !
