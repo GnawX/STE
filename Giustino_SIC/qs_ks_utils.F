@@ -744,7 +744,7 @@ CONTAINS
 
       ! Hartree sic corrections
       SELECT CASE (dft_control%sic_method_id)
-      CASE (sic_mauri_us, sic_mauri_spz)
+      CASE (sic_mauri_us, sic_mauri_spz, sic_mauri_giustino)
          CALL pw_copy(rho_g(1)%pw, work_rho%pw)
          CALL pw_axpy(rho_g(2)%pw, work_rho%pw, alpha=-1._dp)
          CALL pw_poisson_solve(poisson_env, work_rho%pw, ener, work_v%pw)
@@ -788,7 +788,7 @@ CONTAINS
                              Itype_of_density="SPIN")
 
       SELECT CASE (dft_control%sic_method_id)
-      CASE (sic_mauri_us, sic_mauri_spz)
+      CASE (sic_mauri_us, sic_mauri_spz, sic_mauri_giustino)
          full_scaling = -dft_control%sic_scaling_a
       CASE (sic_ad)
          full_scaling = -dft_control%sic_scaling_a*nelec
