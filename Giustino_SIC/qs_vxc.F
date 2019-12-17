@@ -633,6 +633,7 @@ CONTAINS
             ENDIF
             
             exc = exc+dft_control%sic_scaling_b*exc_dd - dft_control%sic_scaling_b*exc_dm/2.0_dp
+         ENDIF
             
          !
          ! cleanups
