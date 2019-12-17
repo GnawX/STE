@@ -38,7 +38,7 @@ MODULE cp_control_utils
         do_se_lr_ewald_r3, do_se_lr_none, gaussian_env, numerical, ramp_env, &
         real_time_propagation, sccs_andreussi, sccs_derivative_cd3, sccs_derivative_cd5, &
         sccs_derivative_cd7, sccs_derivative_fft, sccs_fattebert_gygi, sic_ad, sic_eo, &
-        sic_list_all, sic_list_unpaired, sic_mauri_spz, sic_mauri_us, sic_none, slater, &
+        sic_list_all, sic_list_unpaired, sic_mauri_spz, sic_mauri_us, sic_mauri_giustino, sic_none, slater, &
         tddfpt_excitations, use_mom_ref_user, xas_dip_len
    USE input_cp2k_dft,                  ONLY: create_dft_section,&
                                               create_qs_section
@@ -1269,6 +1269,8 @@ CONTAINS
             tmpstr = "SPZ/MAURI SIC"
          CASE (sic_mauri_us)
             tmpstr = "US/MAURI SIC"
+         CASE (sic_mauri_giustino)
+            tmpstr = "MG/MAURI-GIUSTINO SIC"
          CASE (sic_ad)
             tmpstr = "AD SIC"
          CASE (sic_eo)
