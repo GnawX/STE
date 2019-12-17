@@ -6511,8 +6511,8 @@ CONTAINS
                           description="Method used to remove the self interaction", &
                           usage="SIC_METHOD MAURI_US", &
                           default_i_val=sic_none, &
-                          enum_c_vals=s2a("NONE", "MAURI_US", "MAURI_GIUSTINO", "MAURI_SPZ", "AD", "EXPLICIT_ORBITALS"), &
-                          enum_i_vals=(/sic_none, sic_mauri_us, sic_mauri_giustino, sic_mauri_spz, sic_ad, sic_eo/), &
+                          enum_c_vals=s2a("NONE", "MAURI_US", "MAURI_SPZ", "AD", "EXPLICIT_ORBITALS", "MAURI_GIUSTINO" ), &
+                          enum_i_vals=(/sic_none, sic_mauri_us, sic_mauri_spz, sic_ad, sic_eo, sic_mauri_giustino/), &
                           enum_desc=s2a("Do not apply a sic correction", &
                                         "Employ a (scaled) correction proposed by Mauri and co-workers"// &
                                         " on the spin density / doublet unpaired orbital", &
