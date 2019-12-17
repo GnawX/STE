@@ -51,7 +51,7 @@ MODULE qs_ks_utils
    USE input_constants,                 ONLY: &
         cdft_alpha_constraint, cdft_beta_constraint, cdft_charge_constraint, &
         cdft_magnetization_constraint, do_ppl_grid, outer_scf_hirshfeld_constraint, sic_ad, &
-        sic_eo, sic_list_all, sic_list_unpaired, sic_mauri_spz, sic_mauri_us, sic_none
+        sic_eo, sic_list_all, sic_list_unpaired, sic_mauri_spz, sic_mauri_us, sic_mauri_giustino, sic_none
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
@@ -1373,7 +1373,7 @@ CONTAINS
             SELECT CASE (dft_control%sic_method_id)
             CASE (sic_none)
                !
-            CASE (sic_mauri_us, sic_mauri_spz)
+            CASE (sic_mauri_us, sic_mauri_spz, sic_mauri_giustino)
                IF (ispin == 1) THEN
                   v_rspace_new(ispin)%pw%cr3d = v_rspace_new(ispin)%pw%cr3d- &
                                                 v_sic_rspace%pw%cr3d
@@ -1439,7 +1439,7 @@ CONTAINS
 
          SELECT CASE (dft_control%sic_method_id)
          CASE (sic_none)
-         CASE (sic_mauri_us, sic_mauri_spz, sic_ad)
+         CASE (sic_mauri_us, sic_mauri_spz, sic_mauri_giustino, sic_ad)
             CALL pw_pool_give_back_pw(auxbas_pw_pool, v_sic_rspace%pw)
          END SELECT
          DEALLOCATE (v_rspace_new)
