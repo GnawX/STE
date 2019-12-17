@@ -6519,7 +6519,8 @@ CONTAINS
                                         "Employ a (scaled) Perdew-Zunger expression"// &
                                         " on the spin density / doublet unpaired orbital", &
                                         "The average density correction", &
-                                        "(scaled) Perdew-Zunger correction explicitly on a set of orbitals."), &
+                                        "(scaled) Perdew-Zunger correction explicitly on a set of orbitals", &
+                                         "Mauri_Giustino approach."), &
                           citations=(/VandeVondele2005b, Perdew1981, Avezac2005/))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
