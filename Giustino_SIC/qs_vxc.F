@@ -587,8 +587,8 @@ CONTAINS
                ! both go to minority spin
                vxc_rho(2)%pw%cr3d = vxc_rho(2)%pw%cr3d+ &
                                     2.0_dp*dft_control%sic_scaling_b*my_vxc_rho(1)%pw%cr3d
-               CALL pw_release(my_vxc_rho(1)%pw)
-               CALL pw_release(my_vxc_rho(2)%pw)
+               !CALL pw_release(my_vxc_rho(1)%pw)
+               !CALL pw_release(my_vxc_rho(2)%pw)
                !DEALLOCATE (my_vxc_rho)
             ENDIF
             
@@ -613,7 +613,7 @@ CONTAINS
                                    pw_pool=xc_pw_pool)
             ELSE
                ! virial untested
-               ! CPASSERT(.NOT. compute_virial)
+                CPASSERT(.NOT. compute_virial)
                CALL xc_vxc_pw_create1(vxc_rho=my_vxc_rho, vxc_tau=my_vxc_tau, rho_r=rho_r, &
                                       rho_g=rho_g, tau=tau, exc=exc_dm, &
                                       xc_section=xc_section, &
