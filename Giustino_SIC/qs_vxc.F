@@ -613,7 +613,7 @@ CONTAINS
                                    pw_pool=xc_pw_pool)
             ELSE
                ! virial untested
-               CPASSERT(.NOT. compute_virial)
+               ! CPASSERT(.NOT. compute_virial)
                CALL xc_vxc_pw_create1(vxc_rho=my_vxc_rho, vxc_tau=my_vxc_tau, rho_r=rho_r, &
                                       rho_g=rho_g, tau=tau, exc=exc_dm, &
                                       xc_section=xc_section, &
