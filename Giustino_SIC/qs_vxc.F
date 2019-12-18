@@ -587,9 +587,9 @@ CONTAINS
                ! both go to minority spin
                vxc_rho(2)%pw%cr3d = vxc_rho(2)%pw%cr3d+ &
                                     2.0_dp*dft_control%sic_scaling_b*my_vxc_rho(1)%pw%cr3d
-               !CALL pw_release(my_vxc_rho(1)%pw)
-               !CALL pw_release(my_vxc_rho(2)%pw)
-               !DEALLOCATE (my_vxc_rho)
+               CALL pw_release(my_vxc_rho(1)%pw)
+               CALL pw_release(my_vxc_rho(2)%pw)
+               DEALLOCATE (my_vxc_rho)
             ENDIF
             
             ALLOCATE (rho_m_rspace(2), rho_m_gspace(2))
@@ -610,11 +610,19 @@ CONTAINS
             CALL pw_pool_create_pw(xc_pw_pool, rho_m_rspace(2)%pw, &
                                    use_data=REALDATA3D, &
                                    in_space=REALSPACE)
-            CALL pw_zero(rho_m_rspace(2)%pw)
-            CALL pw_zero(rho_m_gspace(2)%pw)
+            CALL pw_copy(rho_struct_r(2)%pw, rho_m_rspace(2)%pw)
+            CALL pw_copy(rho_struct_g(2)%pw, rho_m_gspace(2)%pw)
             
-            CALL pw_axpy(rho_m_rspace(1)%pw, rho_r(1)%pw, alpha=-1._dp)
-            CALL pw_axpy(rho_m_gspace(1)%pw, rho_g(1)%pw, alpha=-1._dp)
+            CALL pw_axpy(rho_m_rspace(1)%pw, rho_m_rspace(2)%pw, alpha=-1._dp)
+            CALL pw_axpy(rho_m_gspace(1)%pw, rho_m_gspace(2)%pw, alpha=-1._dp)
+            
+            rho_r(1)%pw => rho_m_rspace(2)%pw
+            rho_r(2)%pw => rho_struct_r(2)%pw
+   
+            IF (rho_g_valid) THEN
+               rho_g(1)%pw => rho_m_gspace(2)%pw
+               rho_g(2)%pw => rho_struct_g(2)%pw
+            ENDIF
             
             IF (my_just_energy) THEN
                exc_dm = xc_exc_calc(rho_r=rho_r, tau=tau, &
