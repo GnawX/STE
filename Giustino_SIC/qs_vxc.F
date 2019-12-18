@@ -604,6 +604,15 @@ CONTAINS
             CALL pw_copy(rho_struct_g(1)%pw, rho_m_gspace(1)%pw)
             CALL pw_axpy(rho_struct_g(2)%pw, rho_m_gspace(1)%pw, alpha=-1._dp)
             
+            CALL pw_pool_create_pw(xc_pw_pool, rho_m_gspace(2)%pw, &
+                                   use_data=COMPLEXDATA1D, &
+                                   in_space=RECIPROCALSPACE)
+            CALL pw_pool_create_pw(xc_pw_pool, rho_m_rspace(2)%pw, &
+                                   use_data=REALDATA3D, &
+                                   in_space=REALSPACE)
+            CALL pw_zero(rho_m_rspace(2)%pw)
+            CALL pw_zero(rho_m_gspace(2)%pw)
+            
             CALL pw_axpy(rho_m_rspace(1)%pw, rho_r(1)%pw, alpha=-1._dp)
             CALL pw_axpy(rho_m_gspace(1)%pw, rho_g(1)%pw, alpha=-1._dp)
             
@@ -633,6 +642,14 @@ CONTAINS
             ENDIF
             
             exc = exc+dft_control%sic_scaling_b*exc_dd - dft_control%sic_scaling_b*exc_dm/2.0_dp
+            
+            
+            DO ispin = 1, 2
+               CALL pw_pool_give_back_pw(xc_pw_pool, rho_m_rspace(ispin)%pw)
+               CALL pw_pool_give_back_pw(xc_pw_pool, rho_m_gspace(ispin)%pw)
+            ENDDO
+            DEALLOCATE (rho_m_rspace)
+            DEALLOCATE (rho_m_gspace)
          ENDIF
             
          !
