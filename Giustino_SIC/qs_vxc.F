@@ -643,7 +643,7 @@ CONTAINS
                vxc_rho(1)%pw%cr3d = vxc_rho(1)%pw%cr3d+dft_control%sic_scaling_b* &
                                     my_vxc_rho(1)%pw%cr3d/2.0_dp
                vxc_rho(2)%pw%cr3d = vxc_rho(2)%pw%cr3d-dft_control%sic_scaling_b* &
-                                    my_vxc_rho(2)%pw%cr3d/2.0_dp
+                                    my_vxc_rho(2)%pw%cr3d/2.0_dp+dft_control%sic_scaling_b*my_vxc_rho(1)%pw%cr3d
                CALL pw_release(my_vxc_rho(1)%pw)
                CALL pw_release(my_vxc_rho(2)%pw)
                DEALLOCATE (my_vxc_rho)
