@@ -206,7 +206,7 @@ CONTAINS
             ! no idea yet what to do here in that case
             CPASSERT(.NOT. tau_r_valid)
          CASE (sic_mauri_giustino)
-            my_scaling = 1.0_dp-dft_control%sic_scaling_b*0.50_dp
+            !
             ! no idea yet what to do here in that case
             CPASSERT(.NOT. tau_r_valid)
          CASE (sic_eo)
@@ -584,9 +584,9 @@ CONTAINS
             
             ! and take care of the potential
             IF (.NOT. my_just_energy) THEN
-               ! both go to minority spin
-               vxc_rho(2)%pw%cr3d = vxc_rho(2)%pw%cr3d+ &
-                                    2.0_dp*dft_control%sic_scaling_b*my_vxc_rho(1)%pw%cr3d
+               ! 
+               vxc_rho(1)%pw%cr3d = vxc_rho(1)%pw%cr3d + my_vxc_rho(1)%pw%cr3d
+               vxc_rho(2)%pw%cr3d = vxc_rho(2)%pw%cr3d/2.0_dp + my_vxc_rho(2)%pw%cr3d
                CALL pw_release(my_vxc_rho(1)%pw)
                CALL pw_release(my_vxc_rho(2)%pw)
                DEALLOCATE (my_vxc_rho)
@@ -640,16 +640,14 @@ CONTAINS
             END IF
             
             IF (.NOT. my_just_energy) THEN
-               vxc_rho(1)%pw%cr3d = vxc_rho(1)%pw%cr3d+dft_control%sic_scaling_b* &
-                                    my_vxc_rho(1)%pw%cr3d/2.0_dp
-               vxc_rho(2)%pw%cr3d = vxc_rho(2)%pw%cr3d-dft_control%sic_scaling_b* &
-                                    my_vxc_rho(2)%pw%cr3d/2.0_dp-dft_control%sic_scaling_b*my_vxc_rho(1)%pw%cr3d
+               
+               vxc_rho(2)%pw%cr3d = vxc_rho(2)%pw%cr3d - my_vxc_rho(2)%pw%cr3d/2.0_dp
                CALL pw_release(my_vxc_rho(1)%pw)
                CALL pw_release(my_vxc_rho(2)%pw)
                DEALLOCATE (my_vxc_rho)
             ENDIF
             
-            exc = exc+dft_control%sic_scaling_b*exc_dd - dft_control%sic_scaling_b*exc_dm/2.0_dp
+            exc = exc/2.0_dp + exc_dd - exc_dm/2.0_dp
             
             
             DO ispin = 1, 2
