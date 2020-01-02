@@ -585,8 +585,8 @@ CONTAINS
             ! and take care of the potential
             IF (.NOT. my_just_energy) THEN
                ! 
-               vxc_rho(1)%pw%cr3d = vxc_rho(1)%pw%cr3d + my_vxc_rho(1)%pw%cr3d
-               vxc_rho(2)%pw%cr3d = vxc_rho(2)%pw%cr3d/2.0_dp + my_vxc_rho(2)%pw%cr3d
+               
+               vxc_rho(2)%pw%cr3d = vxc_rho(2)%pw%cr3d/2.0_dp + 2.0_dp*my_vxc_rho(1)%pw%cr3d
                CALL pw_release(my_vxc_rho(1)%pw)
                CALL pw_release(my_vxc_rho(2)%pw)
                DEALLOCATE (my_vxc_rho)
@@ -640,8 +640,8 @@ CONTAINS
             END IF
             
             IF (.NOT. my_just_energy) THEN
-               
-               vxc_rho(2)%pw%cr3d = vxc_rho(2)%pw%cr3d - my_vxc_rho(2)%pw%cr3d/2.0_dp
+               vxc_rho(1)%pw%cr3d = vxc_rho(1)%pw%cr3d/2.0_dp + my_vxc_rho(1)%pw%cr3d/2.0_dp
+               vxc_rho(2)%pw%cr3d = vxc_rho(2)%pw%cr3d - my_vxc_rho(2)%pw%cr3d/2.0_dp - my_vxc_rho(1)%pw%cr3d
                CALL pw_release(my_vxc_rho(1)%pw)
                CALL pw_release(my_vxc_rho(2)%pw)
                DEALLOCATE (my_vxc_rho)
